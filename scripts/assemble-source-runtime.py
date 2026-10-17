@@ -51,10 +51,10 @@ concat.write_text('ffconcat version 1.0\n'+''.join(f"file '{r['file'].replace(ch
 chapters=work/'chapters.ffmetadata';chapters.write_text(';FFMETADATA1\n'+''.join(f"[CHAPTER]\nTIMEBASE=1/30\nSTART={s['from']}\nEND={s['to']}\ntitle={s['name']}\n"for s in plan['sections']))
 target=out/'Frame 01 - Nano Banana cartoon workflow - 12m31s.mp4'
 if '--verify'not in sys.argv:
-    joined=subprocess.run([ffmpeg,'-v','warning','-y','-safe','0','-f','concat','-i',str(concat),'-i',str(wav),'-i',str(chapters),'-map','0:v:0','-map','1:a:0','-map_metadata','2','-map_chapters','2','-c:v','copy','-video_track_timescale','90000','-af','loudnorm=I=-16:TP=-1.5:LRA=11','-ar',str(rate),'-c:a','aac','-b:a','192k','-t',str(plan['frames']/30),'-movflags','+faststart',str(target)],capture_output=True,text=True,check=True)
+    joined=subprocess.run([ffmpeg,'-v','warning','-y','-safe','0','-f','concat','-i',str(concat),'-i',str(wav),'-i',str(chapters),'-map','0:v:0','-map','1:a:0','-map_metadata','2','-map_chapters','2','-c:v','copy','-video_track_timescale','90000','-af','loudnorm=I=-16:TP=-3:LRA=11','-ar',str(rate),'-c:a','aac','-b:a','192k','-t',str(plan['frames']/30),'-movflags','+faststart',str(target)],capture_output=True,text=True,check=True)
     assert 'Non-monotonic'not in joined.stderr,joined.stderr[-2000:]
 info=json.loads(subprocess.check_output([ffprobe,'-v','error','-show_streams','-show_format','-show_chapters','-of','json',str(target)]))
-if '--verify'in sys.argv and float(info['format']['duration'])>751.03:
+if float(info['format']['duration'])>751.03:
     trimmed=work/'trimmed-audio-tail.mp4'
     subprocess.run([ffmpeg,'-v','error','-y','-i',str(target),'-map','0:v:0','-map','0:a:0','-map_metadata','0','-map_chapters','0','-c','copy','-t','751','-video_track_timescale','90000','-movflags','+faststart',str(trimmed)],check=True)
     archive=out/'history'/'audio-tail';archive.mkdir(exist_ok=True);target.rename(archive/target.name);trimmed.rename(target)

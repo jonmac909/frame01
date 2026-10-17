@@ -28,7 +28,10 @@ function at(s:number){let i=knots.findIndex(k=>k[0]>=s);if(i<0)return knots.at(-
 const frames=at(751),speech:FullPlan['speech']=[];
 let cursor=0;
 function talk(a:number,b:number){let start=f(a),end=f(b);for(const r of removed.filter(r=>r.b>start&&r.a<end)){if(r.a>start){const n=r.a-start;speech.push({from:cursor,to:cursor+n,trim:start});cursor+=n}start=Math.max(start,r.b)}if(start<end){const n=end-start;speech.push({from:cursor,to:cursor+n,trim:start});cursor+=n}}
-talk(0,3.383);talk(12.122,17.619);assert.equal(cursor,266);cursor+=openingGap;talk(3.383,12.122);
+// Provider cue 1 ends inside “workflow”. The actual quiet gap is 3.88–4.44s.
+// Keep that whole word before the teaser; the remaining opening ends at the
+// same frame, with a short silent presenter hold after the teaser.
+talk(0,125/30);talk(12.122,17.619);assert.equal(cursor,290);cursor+=openingGap;talk(125/30,12.122);
 let raw=17.619;for(const g of gaps){talk(raw,g.raw);cursor+=f(g.seconds);raw=g.raw}talk(raw,801.367);assert.equal(cursor,frames);
 const sorted=[...speech.map(s=>[s.trim,s.trim+s.to-s.from]),...removed.map(r=>[r.a,r.b])].sort((a,b)=>a[0]-b[0]);let coverage=0;for(const [a,b]of sorted){assert.equal(a,coverage,'Unaccounted speech removal or duplicate');coverage=b}assert.equal(coverage,f(801.367));
 const cameraProof:any[]=[];
