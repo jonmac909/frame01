@@ -1,0 +1,11 @@
+import fs from 'node:fs/promises';
+import {indexLibrary,searchLibrary,importLibrary} from '../src/library.js';
+import {readProject,mutate,event,validateTimeline,atomicJson} from '../src/core.js';
+console.log(await indexLibrary());
+const id='capture-and-export-verification-f4a34087';const p=await readProject(id);if(!p.timeline)throw new Error('Run recording verification first.');
+const whoosh=(await searchLibrary('Whoosh 1','sfx'))[0],click=(await searchLibrary('Mouse click 1','sfx'))[0];
+const w=await importLibrary(id,whoosh.id),c=await importLibrary(id,click.id);
+const timeline={...p.timeline,audio:[{id:'title-whoosh',asset:w.file,start:.1,duration:Math.min(w.duration!,1.2),trim:0,volume:.22,fade:.04},{id:'ui-click',asset:c.file,start:1.7,duration:Math.min(c.duration!,1),trim:0,volume:.3,fade:.01}]};
+await validateTimeline(id,timeline);await mutate(id,p=>{p.timeline=timeline;event(p,'pack-sfx','Added real Whoosh 1 and Mouse click 1 from the filmmaking pack to the verification edit.')});
+await mutate('nano-banana-cartoon-workflow-28043a87',p=>{if(!p.notes.includes('ULTIMATE FILMMAKING PACK 1'))p.notes+='\n\nUse ULTIMATE FILMMAKING PACK 1 before generating replacement editing assets. Prioritize its mouse clicks for real UI actions, whooshes for graphics, and sparse impacts/reveal risers. Choose backgrounds, transitions, fonts, and LUTs from the same library where they fit. Keep SFX below narration and verify the final audio mix.';});
+const token=await fs.readFile('data/runtime-token','utf8');const r=await fetch(`http://127.0.0.1:4317/api/projects/${id}/action`,{method:'POST',headers:{'Content-Type':'application/json','X-Editor-Token':token},body:JSON.stringify({name:'render'})});const rendered:any=await r.json();if(!r.ok)throw new Error(rendered.error);console.log(JSON.stringify({render:rendered.render,sounds:[w.relativePath,c.relativePath]},null,2));

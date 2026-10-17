@@ -1,0 +1,7 @@
+# Verified release scope
+
+The local application passed `npm run typecheck`, all 25 tests with `npm test`, and `npm run build` before this source export. The export preserves the authored source and lockfile; the public README adds setup and excluded-input guidance. No private project ledger, reference/course recording, generated media, model weight, runtime token, dependency tree or hosting credential is included.
+
+The first full artifact measures 22,530 frames / 751 seconds at 1920x1080 and 30 fps. All decoded master frames equal the accepted section exports; 136 retained-speech waveform checks have zero suspects. The final audio measures -16.09 LUFS integrated and -2.81 dBTP. All seven style sections remain, with retained narration at native speed. Visual inspection covered all 3,009 final quarter-second samples on 52 contact sheets. The final master and private evidence are delivered separately.
+
+These results do not establish full human creative approval, human listening, exact lip synchronization, identical source actions or dependable unattended operation with a particular model. GPT 6.1 Sol / Opus 5.5 regression qualification and the 3–4 hour production target remain unproven. See `MODEL-READINESS.md` and `EDITING_TURNAROUND.md`.

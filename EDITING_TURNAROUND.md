@@ -1,0 +1,7 @@
+# Per-video turnaround
+
+Human requirement: the complete per-video run should take 3-4 hours, including required preparation, generation/queue waits, recording, editing, rendering and actual audiovisual/4fps review. Initial application construction is separate from a normal video run. Keep total elapsed time visible; record each stage and external waiting separately to identify the actual delay, without excluding it from the total.
+
+Reuse completed media, receipts, source review, measured camera paths and approved methods. Do not repeat discovery, source scans, generation or complete-video rendering without a specific unresolved defect. Render and repair affected sections, then concatenate verified sections. Source matching, normal speech speed, every required style, real UI recordings, paid-media limits and artifact QA remain required.
+
+The completed reference-runtime master is 22530 frames / 751 seconds at 30fps. All nine section renders, real UI inserts, targeted repairs and artifact checks are complete. This run missed the target: it included a roughly seven-hour approval stall and about 155 minutes of asset preparation, followed by rendering, repairs and QA. These delays count toward total elapsed time. The private review deployment and remote code publication have separate delivery receipts. Record measured render frames per second and stage durations in export proofs. For the next run, optimize the measured slow stages; do not claim the 3-4 hour target has been demonstrated.

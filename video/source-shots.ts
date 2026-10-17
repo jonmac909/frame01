@@ -1,0 +1,51 @@
+// Authored from actual 4 fps source review. Times identify real visual changes;
+// camera tracks and cut-refinement evidence are stored separately. No equal paragraph shots.
+export type SourceShot={start:number;end:number;kind:'presenter'|'image'|'screen'|'example'|'intro'|'montage'|'logo'|'text';asset?:string;note?:string};
+type Mark=[number,SourceShot['kind'],string?,string?];
+const marks:Mark[]=[
+ [0,'intro'],[4.6,'example','opening-dialogue','wide, reaction, speaker, two-shot, wide'],[24.4,'presenter'],
+ [29.7,'example','rubber-hose-magic-motion','cyan rounded card'],[33.5667,'screen','animation-prompt'],[37,'montage'],[40.7667,'presenter'],[44.1333,'logo'],[45.7333,'presenter'],
+ [53.3333,'screen','home'],[56.4,'presenter'],[58.8,'example','3d-badger-scene-motion'],[61.7333,'screen','model-selector','image model then output controls'],[74.4,'presenter'],
+ [77.2333,'image','badger-character-sheet'],[81.4,'screen','character-prompt'],[84.9667,'image','badger-character-sheet','use approved character-sheet-camera.json'],
+ [100.7667,'presenter'],[110.5,'text','expression-warning'],[115.6,'presenter'],[118.4667,'image','badger-expression-sheet'],[121.5,'screen','expression-prompt'],[127.5,'image','badger-expression-sheet','zoom into surprised lower-left face'],
+ [132.8,'presenter'],[136.2333,'image','badger-empty-kitchen'],[139.9,'screen','kitchen-prompt'],[144.2333,'image','badger-empty-kitchen','enlarge toward table and window'],[148.9,'presenter'],
+ [151.2667,'screen','video-references','video model'],[155,'screen','video-output','resolution and duration'],[162,'screen','video-output','audio setting'],[164,'screen','video-references','ordered references'],
+ [171.9,'presenter'],[177.7333,'screen','animation-prompt'],[190.2333,'example','3d-badger-scene-motion','taste/react then replay'],[210,'presenter'],[213.2333,'example','watercolor-village-motion'],[216,'presenter'],
+ [222,'screen','watercolor-prompt'],[228.2333,'image','watercolor-empty-village','whole landscape then rightward zoom'],[235.2,'presenter'],[237.7333,'screen','watercolor-prompt'],
+ [245.4667,'image','watercolor-fox-sheet'],[248.7333,'screen','watercolor-prompt'],[252.9667,'image','watercolor-rabbit-sheet'],[258.7333,'presenter'],[264.7333,'image','watercolor-boat-sheet'],
+ [269.9667,'screen','watercolor-prompt'],[273.7333,'image','watercolor-boat-sheet','pan across prop views'],[283.2667,'screen','video-references'],[287.5,'screen','video-output'],[291.5,'screen','video-references'],[295.5,'screen','animation-prompt'],
+ [304.5,'example','watercolor-village-motion','journey, arrival, reunion; complete result then replay'],[342.7333,'presenter'],[348.7333,'example','rubber-hose-magic-motion','teaser'],
+ [360.5,'screen','character-prompt'],[364.7333,'image','rubber-cat-sheet'],[366,'image','rubber-rabbit-sheet'],[366.7333,'image','rubber-hat-sheet'],[367.7333,'image','rubber-empty-stage'],[369.2333,'image','rubber-rabbit-sheet'],
+ [371.7333,'screen','video-references'],[374,'screen','video-output'],[375.75,'screen','animation-prompt'],[377.5,'example','rubber-hose-magic-motion','setup, trick, reaction, payoff and selected replay'],
+ [404,'presenter'],[411.7333,'example','paper-underwater-motion','teaser'],[417.5,'presenter'],[420.5,'screen','character-prompt'],[423.7333,'image','paper-diver-sheet'],[425,'image','paper-octopus-sheet'],[426,'image','paper-empty-underwater'],
+ [426.7333,'screen','video-references'],[430,'screen','model-selector'],[433,'screen','video-output'],[435.75,'screen','animation-prompt'],[437.5,'example','paper-underwater-motion','establish, discovery, encounter, replay'],
+ [465.25,'presenter'],[469.7333,'text','dialogue-direction'],[471.9,'presenter'],[482,'example','nineties-dialogue-motion','dialogue teaser'],[486.25,'screen','character-prompt'],[491.2333,'image','nineties-lizard-sheet'],
+ [493.7333,'screen','dialogue-prompt'],[497.5,'image','nineties-frog-sheet'],[501.3333,'presenter'],[508.5,'screen','dialogue-prompt'],[509.7333,'image','nineties-gadget-sheet'],[510.5,'presenter'],
+ [515,'example','nineties-dialogue-motion','room hatch action insert'],[517.5,'presenter'],[522,'screen','dialogue-prompt'],[526,'image','nineties-room-open'],[530.7333,'screen','dialogue-prompt'],
+ [538,'image','nineties-room-closed'],[542.5,'screen','video-references'],[546,'screen','video-output'],[547.25,'screen','dialogue-prompt'],[556.25,'example','nineties-dialogue-motion','hatch action, speaker A, speaker B, prop, exits, replay'],
+ [596.7333,'presenter'],[600.2333,'example','anime-bridge-motion','teaser'],[603.2333,'screen','character-prompt'],[606.75,'screen','animation-prompt'],[609.2333,'image','anime-traveler-sheet'],[609.7333,'image','anime-dragon-sheet'],
+ [610.2333,'image','anime-empty-bridge','full-frame environment camera movement'],[617.2333,'screen','video-references'],[620,'screen','video-output'],[621,'screen','animation-prompt'],[623.5,'example','anime-bridge-motion','approach, action, jump, landing and selected replay'],
+ [652,'presenter'],[659.7333,'screen','character-prompt'],[661.2333,'image','clay-bear-sheet'],[662,'image','clay-rabbit-sheet'],[662.7333,'screen','character-prompt'],[664,'image','clay-kite-sheet'],[665.25,'screen','animation-prompt'],
+ [667,'image','clay-empty-hill'],[667.8,'presenter'],[674.4667,'image','clay-empty-hill','rise, then zoom into hilltop'],[683.2333,'screen','video-references'],[686,'screen','video-output'],[687,'screen','animation-prompt'],
+ [689.5,'example','clay-kite-motion','kite setup, run, mishap, rescue, seated payoff, replay'],[732.7333,'presenter'],[735,'montage'],[740.5,'presenter'],
+];
+export const sourceShots:SourceShot[]=marks.map(([start,kind,asset,note],i)=>({start,end:marks[i+1]?.[0]??751,kind,asset,note}));
+export const sourceCameraShots=[
+ {key:'badger-sheet-teaser',start:77.2333,end:81.4,anchor:78},
+ {key:'badger-expressions-intro',start:118.4667,end:121.5,anchor:119.25},
+ {key:'badger-expressions-detail',start:127.5,end:132.8,anchor:128.25},
+ {key:'badger-kitchen-intro',start:136.2333,end:139.9,anchor:137},
+ {key:'badger-kitchen-detail',start:144.2333,end:148.9,anchor:145},
+ {key:'watercolor-world',start:228.2333,end:235.2,anchor:229.25},
+ {key:'watercolor-fox',start:245.4667,end:248.7333,anchor:246.25},
+ {key:'watercolor-rabbit',start:252.9667,end:258.7333,anchor:254},
+ {key:'watercolor-boat-intro',start:264.7333,end:269.9667,anchor:265.75},
+ {key:'watercolor-boat-detail',start:273.7333,end:283.2667,anchor:274.5},
+ {key:'rubber-rabbit',start:369.2333,end:371.7333,anchor:369.5},
+ {key:'nineties-main',start:491.2333,end:493.7333,anchor:491.75},
+ {key:'nineties-partner',start:497.5,end:501.3333,anchor:498.25},
+ {key:'nineties-room-open',start:526,end:530.7333,anchor:527},
+ {key:'nineties-room-closed',start:538,end:542.5,anchor:539},
+ {key:'anime-world',start:610.2333,end:617.2333,anchor:610.5},
+ {key:'clay-world',start:674.4667,end:683.2333,anchor:675.5},
+];

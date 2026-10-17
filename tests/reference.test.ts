@@ -1,0 +1,23 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs/promises';
+import path from 'node:path';
+await fs.mkdir('test-results',{recursive:true});
+process.env.EDITOR_DATA_DIR=await fs.mkdtemp(path.resolve('test-results/reference-'));
+const core=await import('../src/core.js');
+const {analyzeReference}=await import('../src/reference.js');
+test('reference scan covers the full file at 4 fps beyond the former 60-frame limit',async()=>{
+  const p=await core.createProject({title:'Scan fixture',referenceUrl:'https://youtu.be/fixture',avatar:'Test',voice:'Test'});
+  const file=path.join(core.projectDir(p.id),'reference.mp4');
+  await core.run(core.FFMPEG,['-hide_banner','-loglevel','error','-f','lavfi','-i','testsrc2=size=160x90:rate=4:duration=16.25','-c:v','libx264','-pix_fmt','yuv420p',file]);
+  const result=await analyzeReference(p.id,'reference.mp4');
+  const frames=result.reference!.frames as {seconds:number;file:string}[];
+  assert.equal(frames.length,65);assert.equal(frames[0].seconds,0);assert.equal(frames.at(-1)!.seconds,16);
+  frames.forEach((f,i)=>assert.equal(f.seconds,i/4));
+  const index=(result.reference!.analysis as {index:string}).index;
+  const saved=JSON.parse(await fs.readFile(core.safePath(core.projectDir(p.id),index),'utf8'));
+  assert.equal(saved.sampleFps,4);assert.equal(saved.frameCount,65);
+  assert.equal(saved.sheets.length,2);assert.equal(saved.sheets[1].start,16);assert.equal(saved.sheets[1].end,16);
+  await fs.access(core.safePath(core.projectDir(p.id),saved.sheets[1].file));
+  await fs.access(core.safePath(core.projectDir(p.id),frames.at(-1)!.file));
+});

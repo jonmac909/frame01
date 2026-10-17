@@ -1,0 +1,10 @@
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import {defineTool,toolOutput,toolOutputPart} from 'eve/tools';
+import {directorInputSchema,compactProject} from '../../src/director-contract.js';
+export default defineTool({
+  description:`Operate Frame 01 through typed operations. Start with preflight.check; follow its nextAction. reference.read pages deduplicated source captions. script.read returns budgets or one section. script.plan.save validates complete ordered sections using code-derived source budgets. project.save is for notes or unvalidated drafts. Use only observed browser refs. HeyGen permits one draft and one video attempt forever: a pending/uncertain result consumes the allowance. Link the existing item; never retry submission. timeline.save checks source media and reference runtime; render checks the exported media. Project results are compact; request only needed sections.`,
+  inputSchema:directorInputSchema,
+  async execute({projectId,operation}){const token=await fs.readFile(path.resolve('data/runtime-token'),'utf8');const r=await fetch(`http://127.0.0.1:4317/api/projects/${encodeURIComponent(projectId)}/action`,{method:'POST',headers:{'Content-Type':'application/json','X-Editor-Token':token},body:JSON.stringify(operation)});const body=await r.json();if(!r.ok)throw new Error((body as any).error||r.statusText);return body;},
+  toModelOutput(output:any){return output.imageBase64?toolOutput.content([toolOutputPart.text(output.file),toolOutputPart.file(output.imageBase64,{mediaType:output.mediaType})]):toolOutput.json(output.id&&typeof output.script==='string'&&output.heygen?compactProject(output):output);},
+});

@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="theme-color" content="#0b0f13">
+  <meta name="description" content="Compare the full 12:31 remake with its source, or revisit the approved opening and camera-motion samples.">
+  <title>Frame 01 · Sienna source comparison</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="review-loader.js" defer></script>
+</head>
+<body>
+<main>
+  <nav><span>Frame 01</span><span aria-hidden="true"> / </span><span>Sienna review</span><a href="https://www.youtube.com/watch?v=rOl7ZLG4BRg&t=85s" target="_blank" rel="noreferrer">Original YouTube video ↗</a></nav>
+  <header><h1><span id="sample-title" style="color:inherit;font-weight:inherit">Full video</span> <span>source comparison</span></h1><div class="meta"><a id="full-link" class="version" href="?clip=full">Full 12:31 video</a><a id="opening-link" href="?clip=opening">Approved opening sample</a><a id="motion-link" href="?clip=motion">Approved camera sample</a><span class="pill">Needs review</span><span id="sample-summary">Complete remake · seven cartoon styles</span></div></header>
+  <section class="duo" aria-label="Side-by-side video comparison">
+    <article><div class="video-label"><strong>Source</strong><span id="source-sound">muted</span><time id="source-clock">1:25.00</time></div><video id="source" aria-label="Source video" data-src="media/source-01m25s.mp4" poster="media/source-poster.jpg" preload="auto" playsinline controls muted></video></article>
+    <article><div class="video-label"><strong>Ours · Sienna</strong><span id="ours-sound">sound on</span><time id="ours-clock">0:00.00</time></div><video id="ours" aria-label="Sienna sample" data-src="media/sienna-sample.mp4" poster="media/sienna-poster.jpg" preload="auto" playsinline controls></video></article>
+  </section>
+  <section class="controls" aria-label="Playback controls">
+    <div class="transport"><button id="play-both" class="primary">▶ Play both</button><button id="pause-both">Pause both</button><button id="restart">↺ Restart</button><button id="source-only">Source only</button><button id="ours-only">Ours only</button><label class="check"><input id="sync" type="checkbox" checked> Keep in sync</label><fieldset><legend>Sound:</legend><label><input type="radio" name="sound" value="ours" checked> Ours</label><label><input type="radio" name="sound" value="source"> Source</label><label><input type="radio" name="sound" value="off"> Off</label></fieldset></div>
+    <div class="seek-row"><button id="back-frame" title="Previous frame" aria-label="Previous frame">‹</button><button id="next-frame" title="Next frame" aria-label="Next frame">›</button><label class="sr-only" for="scrub">Comparison position</label><input id="scrub" type="range" min="0" max="19.233333" step="0.0333333333" value="0"><output id="elapsed">0:00.00 / 0:19.23</output><label class="speed">Speed <select id="speed"><option value="0.5">0.5×</option><option value="0.75">0.75×</option><option value="1" selected>1×</option></select></label></div>
+    <div class="moments" aria-label="Jump to a motion"><span>Check:</span></div>
+    <p id="playback-status" class="muted" role="status" aria-live="polite">Loading both videos…</p>
+  </section>
+  <p class="context" id="sample-context"></p>
+  <section class="notes-panel" aria-label="Review notes">
+    <form id="note-form"><div class="notes-heading"><h2>Your review notes</h2><span class="muted">Saved in this browser</span></div><div class="note-time">Comment at <button type="button" id="stamp">0:00.00</button><button type="button" id="stamp-now" class="text-button">use current time</button><span id="source-stamp" class="muted">source 1:25.00</span></div><label class="sr-only" for="note">What should change?</label><textarea id="note" rows="3" maxlength="4000" placeholder="Pause at a moment and describe what should change…" required></textarea><div class="note-actions"><button class="primary" type="submit">Add note</button><button id="export-notes" type="button">Export notes</button><span id="note-status" class="muted" role="status"></span></div></form>
+    <ol id="notes" aria-label="Saved notes"></ol>
+    <p class="muted fine">Notes stay in this browser. Export them when you want to share feedback.</p>
+  </section>
+  <footer><span>Space: play/pause · ← →: one frame · audio plays from one video at a time</span><a id="sample-download" href="media/sienna-first-minute-v1.mp4" download>Download sample</a></footer>
+</main>
+</body>
+</html>

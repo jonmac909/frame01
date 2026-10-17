@@ -1,0 +1,12 @@
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import {ROOT,listProjects,createProject,mutate,event,projectDir,atomicJson} from '../src/core.js';
+import {indexCourse,searchCourse} from '../src/knowledge.js';
+import {parseVtt} from '../src/reference.js';
+let p=(await listProjects()).find(p=>p.referenceUrl.includes('rOl7ZLG4BRg'));
+p??=await createProject({title:'Nano Banana cartoon workflow',referenceUrl:'https://www.youtube.com/watch?v=rOl7ZLG4BRg',avatar:'Sienna',voice:'Nelly',model:'Avatar III',tone:'Warm'});
+const meta=JSON.parse(await fs.readFile(path.resolve(ROOT,'../../work/first-reference-info.json'),'utf8'));
+const captions=parseVtt(await fs.readFile(path.resolve(ROOT,'../../work/reference/rOl7ZLG4BRg.en-orig.vtt'),'utf8'));
+await mutate(p.id,p=>{p.reference={title:meta.title,duration:meta.duration,channel:meta.channel,description:meta.description,captions};event(p,'reference','Saved reference captions and metadata. Video download returned HTTP 403; visual style analysis needs a local reference copy.');});
+const indexed=await indexCourse();
+console.log(JSON.stringify({id:p.id,...indexed,captionCues:captions.length,courseExamples:(await searchCourse('title animation timing')).map(c=>c.source)},null,2));

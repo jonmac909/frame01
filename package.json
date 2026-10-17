@@ -1,0 +1,47 @@
+{
+  "name": "video-editor-agent",
+  "version": "0.0.0",
+  "type": "module",
+  "imports": {
+    "#*": "./agent/*",
+    "#evals/*": "./evals/*"
+  },
+  "scripts": {
+    "build": "eve build",
+    "deploy": "eve deploy",
+    "dev": "eve dev",
+    "eval": "eve eval",
+    "start": "eve start",
+    "typecheck": "tsc",
+    "editor": "tsx src/server.ts",
+    "director": "eve dev --no-ui --no-default-extensions --host 127.0.0.1 --port 4318",
+    "test": "tsx --test tests/*.test.ts"
+  },
+  "dependencies": {
+    "@remotion/bundler": "4.0.536",
+    "@remotion/renderer": "4.0.536",
+    "@vercel/connect": "2.5.2",
+    "ai": "^7.0.137",
+    "eve": "^0.80.1",
+    "express": "5.1.0",
+    "obs-websocket-js": "5.0.6",
+    "playwright": "1.58.2",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "remotion": "4.0.536",
+    "zod": "4.5.4"
+  },
+  "devDependencies": {
+    "@types/express": "5.0.6",
+    "@types/node": "24.x",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "just-bash": "3.6.0",
+    "tsx": "4.23.15",
+    "typescript": "7.0.2"
+  },
+  "engines": {
+    "node": "24.x"
+  },
+  "overrides": {"undici":"7.29.1"}
+}

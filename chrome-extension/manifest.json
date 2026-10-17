@@ -1,0 +1,10 @@
+{
+  "manifest_version":3,
+  "name":"Frame 01 — Existing Chrome Bridge",
+  "version":"1.0.0",
+  "description":"Attach only tabs you choose to your local video editor. Keeps your existing Chrome login.",
+  "permissions":["activeTab","scripting","storage","tabCapture","offscreen","alarms"],
+  "host_permissions":["http://127.0.0.1:4317/*"],
+  "background":{"service_worker":"worker.js"},
+  "action":{"default_popup":"popup.html","default_title":"Attach this tab to Frame 01"}
+}
