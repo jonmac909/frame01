@@ -102,6 +102,8 @@ for(const v of videos){
 document.addEventListener('keydown',e=>{if(e.target.closest('input,textarea,select,button,a,video'))return;if(e.code==='Space'){e.preventDefault();videos.some(v=>!v.paused)?pause():play();}if(['ArrowLeft','ArrowRight'].includes(e.code)){e.preventDefault();step(e.code==='ArrowLeft'?-1:1);}});
 function setStamp(){stamp=current();$('#stamp').textContent=time(stamp);$('#source-stamp').textContent=`source ${time(section().sourceFrom+sourceLocal(stamp-section().from/30))}`;}
 $('#stamp-now').onclick=setStamp;$('#stamp').onclick=()=>seek(stamp);
+$('#note').addEventListener('focus',setStamp);
+$('#note').addEventListener('click',setStamp);
 const storage='frame01-full-source-runtime-v1';let notes=[];try{const stored=JSON.parse(localStorage.getItem(storage)||'[]');if(Array.isArray(stored))notes=stored.filter(n=>typeof n.text==='string'&&Number.isFinite(n.at)&&n.at>=0&&n.at<=total);}catch{}
 function showNotes(){const list=$('#notes');list.replaceChildren();for(const n of notes){const li=document.createElement('li'),button=document.createElement('button'),text=document.createElement('p');button.type='button';button.textContent=time(n.at);button.onclick=()=>seek(n.at);text.textContent=n.text;li.append(button,text);list.append(li);}}
 $('#note-form').onsubmit=e=>{e.preventDefault();const input=$('#note'),text=input.value.trim();if(!text)return;notes.push({at:stamp,text,createdAt:new Date().toISOString()});try{localStorage.setItem(storage,JSON.stringify(notes));$('#note-status').textContent='Note saved in this browser.';}catch{$('#note-status').textContent='Export notes to keep them.';}input.value='';showNotes();};
