@@ -7,8 +7,11 @@ if mode=='assets':
     requests=json.loads((p/'Additional demo requests.json').read_text())
     files=[p/f"assets/local-{r['assetKey']}.mp4"for r in requests if r['kind']=='video']
 elif mode=='walkthrough':files=[p/r['file']for r in json.loads((p/'Walkthrough insert manifest.json').read_text())]
+elif mode=='active-walkthrough':files=[p/r['file']for r in json.loads((p/'Active walkthrough repair manifest.json').read_text())]
+elif mode=='complete-narration':files=sorted((p/'exports/complete-narration').glob('section-??.mp4'))
 else:files=sorted((p/'exports/source-runtime').glob('section-??.mp4'))
-out=p/f'exports/source-runtime/qa-{mode}';out.mkdir(parents=True,exist_ok=True)
+export='complete-narration'if mode=='complete-narration'else'source-runtime'
+out=p/f'exports/{export}/qa-{mode}';out.mkdir(parents=True,exist_ok=True)
 cv2.setNumThreads(2)
 for file in files:
     if not file.exists():continue
@@ -27,7 +30,7 @@ for file in files:
         frame+=1
     cap.release()
     sheets=[]
-    per_page=64 if mode not in ['assets','walkthrough'] else 40
+    per_page=64 if mode not in ['assets','walkthrough','active-walkthrough'] else 40
     for offset in range(0,len(samples),per_page):
         columns=8 if per_page==64 else 5;cell_width=240 if per_page==64 else 384;cell_height=160 if per_page==64 else 240
         sheet=Image.new('RGB',(1920,8*cell_height),'#202830');d=ImageDraw.Draw(sheet)

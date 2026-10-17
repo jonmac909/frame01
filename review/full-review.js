@@ -18,21 +18,25 @@ for(const [v,which,label]of [[source,'source','Source'],[ours,'ours','Sienna']])
  players.push({v,which,label,stage,toggle,clock,mute,full,position});
 }
 for(const id of ['source-clock','ours-clock'])$('#'+id).className='playback-clock';
-$('#play-both').textContent='▶ Play full 12:31 video';
+$('#play-both').textContent='▶ Play full video';
 const runtime=document.createElement('div');runtime.className='full-duration';
-const runtimeTitle=document.createElement('strong');runtimeTitle.textContent='Full video · 12:31';
+const runtimeTitle=document.createElement('strong');runtimeTitle.textContent='Full video';
 const runtimeHint=document.createElement('span');runtimeHint.textContent='Both players seek across the complete video';runtime.append(runtimeTitle,runtimeHint);$('.controls').prepend(runtime);
 const time=n=>{n=Math.max(0,Number(n)||0);return `${Math.floor(n/60)}:${(n%60).toFixed(2).padStart(5,'0')}`};
 const say=text=>$('#playback-status').textContent=text;
 const response=await fetch('full-manifest.json');if(!response.ok)throw new Error('Manifest unavailable');
 const manifest=await response.json(),sections=manifest.sections,total=manifest.frames/30,cache=new Map();
 const sourceTotal=sections[sections.length-1].sourceTo;
+const duration=n=>{const seconds=Math.round(n);return `${Math.floor(seconds/60)}:${(seconds%60).toString().padStart(2,'0')}`;};
+$('#play-both').textContent=`▶ Play full ${duration(total)} video`;
+runtimeTitle.textContent=`Source ${duration(sourceTotal)} · Sienna ${duration(total)}`;
+$('#full-link').textContent=`Full ${duration(total)} video`;
 let index=0,mode='both',acting=false,loading=false,seeking=false,generation=0,stamp=0,desiredSound='ours';
 const section=()=>sections[index],length=()=> (section().to-section().from)/30;
 const current=()=>section().from/30+(mode==='source'?source.currentTime/(section().sourceTo-section().sourceFrom)*length():ours.currentTime);
 const sourceLocal=local=>Math.max(0,Math.min(section().sourceTo-section().sourceFrom-.01,local/length()*(section().sourceTo-section().sourceFrom)));
-$('#sample-title').textContent='Full 12:31 remake';$('#sample-summary').textContent='1.0× Sienna narration · all seven styles';
-$('#sample-context').textContent='Complete source-length edit using the replacement Sienna recording at normal speed. These are 720p review copies; the delivered master is 1080p. The approved samples retain their original test audio. The new illustrations and animation are local Qwen/LTX examples. Software steps are real OpenArt recordings. Full-video approval is pending your review.';
+$('#sample-title').textContent=`Full ${duration(total)} remake`;$('#sample-summary').textContent='Sienna narration · all seven styles';
+$('#sample-context').textContent='Both players show their own full running time. Keep in sync follows matching sections even when their lengths differ. These are 720p review copies; the master is 1080p. The approved samples retain their original test audio. The illustrations and animation are local Qwen/LTX examples. Software steps are real OpenArt recordings. Full-video approval is pending your review.';
 $('#full-link').setAttribute('aria-current','page');source.removeAttribute('poster');ours.removeAttribute('poster');
 document.querySelector('nav a').href='https://www.youtube.com/watch?v=rOl7ZLG4BRg';
 scrub.max=total;scrub.step=1/30;
@@ -51,23 +55,24 @@ for(const p of players){
 for(const s of sections){const button=document.createElement('button');button.textContent=s.name;button.dataset.section=s.index;button.onclick=()=>seek(s.from/30);$('.moments').append(button);}
 async function blob(file){if(!cache.has(file))cache.set(file,fetch(file,{credentials:'same-origin'}).then(async r=>{if(!r.ok)throw new Error('Review section unavailable');const b=await r.blob();if(!b.size||b.type.includes('text/html'))throw new Error('Expected video');return URL.createObjectURL(new Blob([b],{type:'video/mp4'}));}));return cache.get(file);}
 function pause(){acting=true;videos.forEach(v=>v.pause());acting=false;}
+function applyRates(){const rate=Number($('#speed').value)||1;ours.playbackRate=rate;source.playbackRate=rate*(sync.checked&&mode==='both'?(section().sourceTo-section().sourceFrom)/length():1);}
 function sound(value){desiredSound=value;acting=true;source.muted=value!=='source';ours.muted=value!=='ours';acting=false;$('#source-sound').textContent=source.muted?'muted':'sound on';$('#ours-sound').textContent=ours.muted?'muted':'sound on';$(`input[name=sound][value=${value}]`).checked=true;}
 function setLocal(local){seeking=true;ours.currentTime=Math.max(0,Math.min(length()-.005,local));source.currentTime=sourceLocal(local);seeking=false;draw();}
 async function loadSection(next,local=0,resume=false){
  const ticket=++generation;pause();loading=true;index=next;say(`Loading ${section().name.toLowerCase()}…`);draw();
  try{const urls=await Promise.all([blob(section().source),blob(section().ours)]);if(ticket!==generation)return;
   await Promise.all(videos.map((v,i)=>new Promise((resolve,reject)=>{v.onloadedmetadata=resolve;v.onerror=reject;v.src=urls[i];v.load();})));
-  if(ticket!==generation)return;loading=false;setLocal(local);sound(desiredSound);$('#sample-download').href=section().ours;$('#sample-download').textContent=`Download ${section().name.toLowerCase()} chapter`;
+  if(ticket!==generation)return;loading=false;setLocal(local);applyRates();sound(desiredSound);$('#sample-download').href=section().ours;$('#sample-download').textContent=`Download ${section().name.toLowerCase()} chapter`;
   say(`Ready · ${section().name} · ${time(section().from/30)}–${time(section().to/30)}`);if(resume)await play(mode);
   const upcoming=sections[index+1];if(upcoming){blob(upcoming.source).catch(()=>{});blob(upcoming.ours).catch(()=>{});}
  }catch(e){loading=false;say(`This review section could not load. Choose it again to retry.`);cache.delete(section().source);cache.delete(section().ours);}
 }
 async function seek(value){pause();const at=Math.max(0,Math.min(total-1/30,value)),next=sections.findIndex(s=>at>=s.from/30&&at<s.to/30);mode='both';if(next!==index||loading)await loadSection(next,at-sections[next].from/30);else setLocal(at-section().from/30);setStamp();}
 async function play(which='both'){
- if(loading)return;mode=which;acting=true;sync.checked=which==='both';
+ if(loading)return;mode=which;acting=true;sync.checked=which==='both';applyRates();
  if(which!=='both'){videos.filter(v=>v!==(which==='source'?source:ours)).forEach(v=>v.pause());sound(which);}
  const chosen=which==='both'?videos:[which==='source'?source:ours];
- try{await Promise.all(chosen.map(v=>v.play()));say(`Playing ${which==='both'?'together':which==='ours'?'Sienna':'source'} · ${section().name}`);}catch{pause();say('Click Play full 12:31 video to start playback.');}finally{acting=false;}
+ try{await Promise.all(chosen.map(v=>v.play()));say(`Playing ${which==='both'?'together':which==='ours'?'Sienna':'source'} · ${section().name}`);}catch{pause();say('Click Play full video to start playback.');}finally{acting=false;}
 }
 function draw(){
  const t=Math.min(total,current()),oursAt=Math.min(total,section().from/30+ours.currentTime),sourceAt=Math.min(sourceTotal,section().sourceFrom+source.currentTime);
@@ -83,8 +88,8 @@ function draw(){
 function tick(){if(!loading&&sync.checked&&mode==='both'&&!ours.paused){const wanted=sourceLocal(ours.currentTime);if(Math.abs(source.currentTime-wanted)>.2&&!source.seeking){seeking=true;source.currentTime=wanted;seeking=false;}}draw();requestAnimationFrame(tick);}
 $('#play-both').onclick=()=>play();$('#pause-both').onclick=()=>{pause();say('Paused.');};$('#restart').onclick=()=>seek(0);
 $('#source-only').onclick=()=>play('source');$('#ours-only').onclick=()=>play('ours');scrub.oninput=()=>seek(+scrub.value);
-$('#speed').onchange=e=>videos.forEach(v=>v.playbackRate=+e.target.value);
-sync.onchange=()=>{pause();mode='both';if(sync.checked)setLocal(ours.currentTime);};
+$('#speed').onchange=applyRates;
+sync.onchange=()=>{pause();mode='both';applyRates();if(sync.checked)setLocal(ours.currentTime);};
 document.querySelectorAll('input[name=sound]').forEach(r=>r.onchange=()=>sound(r.value));
 async function step(delta){await seek(current()+delta/30);}
 $('#back-frame').onclick=()=>step(-1);$('#next-frame').onclick=()=>step(1);
