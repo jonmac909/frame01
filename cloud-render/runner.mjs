@@ -14,6 +14,7 @@ export async function renderUnit(root,input,output,onProgress=()=>{}){
   const began=performance.now(),job=validateJob(input),p=validatePackage(JSON.parse(await fs.readFile(path.join(root,'package.json'),'utf8')));
   invariant(job.runtimeHash===await runtimeHash(),'Renderer changed; prepare a new job instead of reusing cached output');
   invariant(job.execution===(process.env.FRAME01_CLOUD==='1'?'cloudflare':'local'),'Wrong execution destination');
+  if(job.execution==='cloudflare')invariant(job.imageHash===process.env.FRAME01_IMAGE_SHA256,'Cloud image does not match request');
   invariant(job.trial===undefined||p.purpose==='benchmark','Trial renders are benchmark-only');
   invariant(await digest(p)===job.packageHash,'Package identity mismatch');invariant(job.to<=p.frames,'Unit exceeds composition');invariant(p.ranges.some(r=>job.from>=r.from&&job.to<=r.to),'Range is not packaged');await verifiedFiles(root,p);
   const signature=await digest(job);await fs.mkdir(output,{recursive:true});const file=path.join(output,signature+'.mp4'),proofFile=file+'.proof.json';

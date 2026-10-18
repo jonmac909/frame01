@@ -2,7 +2,7 @@ import {Container} from '@cloudflare/containers';
 import {DurableObject} from 'cloudflare:workers';
 import {SHA,digest,validatePackage,validateJob,invariant,estimateReservation} from './protocol.mjs';
 
-interface Env {MEDIA:R2Bucket; RENDERS:DurableObjectNamespace<RenderContainer>; CONTROL:DurableObjectNamespace<RenderControl>; OWNER_TOKEN:string; MAX_WORKERS:string; PILOT_COMPUTE_USD:string; RENDER_RUNTIME_SHA256:string;}
+interface Env {MEDIA:R2Bucket; RENDERS:DurableObjectNamespace<RenderContainer>; CONTROL:DurableObjectNamespace<RenderControl>; OWNER_TOKEN:string; MAX_WORKERS:string; PILOT_COMPUTE_USD:string; RENDER_RUNTIME_SHA256:string; RENDER_IMAGE_SHA256:string;}
 const json=(data:unknown,status=200)=>Response.json(data,{status});
 const deadlineMs=25*60*1000;
 type RecordJob={id:string;job:any;status:string;createdAt:number;updatedAt:number;base:string;progress?:number;error?:string;proof?:any};
@@ -10,6 +10,7 @@ type RecordJob={id:string;job:any;status:string;createdAt:number;updatedAt:numbe
 export class RenderContainer extends Container<Env>{
   defaultPort=8080;
   sleepAfter='60s';
+  envVars={FRAME01_IMAGE_SHA256:this.env.RENDER_IMAGE_SHA256};
   override async fetch(request:Request){
     const pathname=new URL(request.url).pathname;
     if(pathname==='/stop'){await this.destroy();return json({stopped:true});}
@@ -27,6 +28,7 @@ export class RenderControl extends DurableObject<Env>{
     if(request.method==='POST'){
       const {job,base}=await request.json() as any;validateJob(job);
       invariant(job.execution==='cloudflare'&&job.runtimeHash===this.env.RENDER_RUNTIME_SHA256,'Wrong or obsolete cloud renderer');
+      invariant(job.imageHash===this.env.RENDER_IMAGE_SHA256,'Wrong or obsolete container image');
       invariant(job.encoder==='software'&&job.concurrency<=4,'Cloud supports software encoding and concurrency <= 4');
       const id=await digest(job),prior=await this.ctx.storage.get<RecordJob>('job:'+id);if(prior)return json(prior);
       const manifest=await this.env.MEDIA.get('packages/'+job.packageHash+'.json');invariant(manifest,'Upload the package first');const p=validatePackage(await manifest!.json());invariant(job.to<=p.frames,'Range exceeds package');
@@ -75,7 +77,7 @@ export class RenderControl extends DurableObject<Env>{
 async function handle(request:Request,env:Env){
   if(!env.OWNER_TOKEN||request.headers.get('Authorization')!=='Bearer '+env.OWNER_TOKEN)return json({error:'Unauthorized'},401);
   const u=new URL(request.url),parts=u.pathname.split('/').filter(Boolean),[kind,id,action]=parts;
-  if(kind==='health')return json({ok:true,runtimeHash:env.RENDER_RUNTIME_SHA256,providers:{images:'local:Qwen Image 2.1',clips:'local:LTX 2.5',aroll:'HeyGen'},maxWorkers:Number(env.MAX_WORKERS)});
+  if(kind==='health')return json({ok:true,runtimeHash:env.RENDER_RUNTIME_SHA256,imageHash:env.RENDER_IMAGE_SHA256,providers:{images:'local:Qwen Image 2.1',clips:'local:LTX 2.5',aroll:'HeyGen'},maxWorkers:Number(env.MAX_WORKERS)});
   if(kind==='jobs')return env.CONTROL.getByName('frame01-pilot-v1').fetch(request.method==='POST'?new Request('http://control/',{method:'POST',body:JSON.stringify({job:await request.json(),base:u.origin})}):new Request('http://control/?'+(id?'id='+id:'')));
   invariant(SHA.test(id??''),'Expected SHA256 identity');
   if(kind==='blobs'){

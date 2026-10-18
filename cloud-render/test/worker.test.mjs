@@ -12,13 +12,13 @@ class DO {constructor(ctx,env){this.ctx=ctx;this.env=env;}}
 new Function('require','exports','module',js)(name=>name==='cloudflare:workers'?{DurableObject:DO}:name==='@cloudflare/containers'?{Container:DO}:protocol,module.exports,module);
 const {RenderControl,default:worker}=module.exports;
 const runtime='a'.repeat(64),packageHash='b'.repeat(64);
-const job=(from=0)=>({version:1,packageHash,runtimeHash:runtime,execution:'cloudflare',from,to:from+30,concurrency:2,encoder:'software'});
+const job=(from=0)=>({version:1,packageHash,runtimeHash:runtime,imageHash:runtime,execution:'cloudflare',from,to:from+30,concurrency:2,encoder:'software'});
 function fixture(cap=5){
   const values=new Map(),objects=new Map(),calls=[];
   const storage={async get(k){return structuredClone(values.get(k));},async put(k,v){values.set(k,structuredClone(v));},async list({prefix}){return new Map([...values].filter(([k])=>k.startsWith(prefix)).map(([k,v])=>[k,structuredClone(v)]));},async transaction(fn){return fn(storage);},async setAlarm(at){values.set('alarm',at);}};
   const p={version:1,renderer:'remotion',compositionId:'FullRemake',purpose:'benchmark',providers:protocol.POLICY,identity:{channelId:'test',avatar:'Sienna',voice:'Nelly',model:'Avatar III',speed:1},styleSha256:runtime,planSha256:runtime,frames:300,fps:30,width:1920,height:1080,ranges:[{from:0,to:300}],inputProps:{},files:[{path:'bundle/index.html',sha256:runtime,size:1}]};
   objects.set('packages/'+packageHash+'.json',{json:async()=>p});
-  const env={OWNER_TOKEN:'test-owner-token',MAX_WORKERS:'4',PILOT_COMPUTE_USD:String(cap),RENDER_RUNTIME_SHA256:runtime,MEDIA:{async get(k){return objects.get(k);},async head(k){return objects.get(k);},async put(k,v,options){objects.set(k,{body:v,...options,size:typeof v==='string'?v.length:4,json:async()=>JSON.parse(v)});}},RENDERS:{getByName(id){return {async fetch(url){calls.push({id,path:new URL(url).pathname});return Response.json({status:'running',progress:.5});}};}}};
+  const env={OWNER_TOKEN:'test-owner-token',MAX_WORKERS:'4',PILOT_COMPUTE_USD:String(cap),RENDER_RUNTIME_SHA256:runtime,RENDER_IMAGE_SHA256:runtime,MEDIA:{async get(k){return objects.get(k);},async head(k){return objects.get(k);},async put(k,v,options){objects.set(k,{body:v,...options,size:typeof v==='string'?v.length:4,json:async()=>JSON.parse(v)});}},RENDERS:{getByName(id){return {async fetch(url){calls.push({id,path:new URL(url).pathname});return Response.json({status:'running',progress:.5});}};}}};
   const control=new RenderControl({storage},env);env.CONTROL={getByName(){return {fetch:(...a)=>control.fetch(new Request(...a))};}};
   const request=(path,body,authorized=true,method=body?'POST':'GET')=>worker.fetch(new Request('https://private.example'+path,{method,headers:authorized?{Authorization:'Bearer '+env.OWNER_TOKEN}:{},...(body?{body:JSON.stringify(body)}:{})}),env);
   return {request,control,values,objects,calls};

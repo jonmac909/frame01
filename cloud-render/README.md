@@ -54,13 +54,15 @@ uploaded to GitHub. A daemon-free registry client can transfer that image using
 short-lived Cloudflare registry credentials. Local Docker is not required.
 
 Create a dedicated private R2 bucket, pin `containers[0].image` to the verified
-Cloudflare registry digest, and set `RENDER_RUNTIME_SHA256` to the matching hash.
+Cloudflare registry digest, set `RENDER_IMAGE_SHA256` to that digest without its
+`sha256:` prefix, and set `RENDER_RUNTIME_SHA256` to the matching code hash.
 Set `OWNER_TOKEN` with Wrangler's secret command, then deploy. The checked-in
 Dockerfile configuration is a build template, not proof of a deployment.
 
 Save `{ "url": "https://YOUR-WORKER.workers.dev", "token": "PRIVATE-TOKEN" }`
 outside version control. Use `execution:"cloudflare"`, software encoding and
-at most four tabs per cloud job:
+at most four tabs per cloud job. Include the exact `imageHash` from authenticated
+`/health` in each cloud job:
 
 ```powershell
 node cloud-render/client.mjs upload work/private-cloud.json work/package

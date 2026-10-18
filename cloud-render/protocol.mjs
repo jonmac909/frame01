@@ -47,7 +47,8 @@ export function validateJob(j) {
   invariant(j?.version===1&&SHA.test(j.packageHash),'Invalid render request');
   invariant(SHA.test(j.runtimeHash),'Missing pinned renderer runtime');
   invariant(['local','cloudflare'].includes(j.execution),'Missing execution destination');
-  invariant(Object.keys(j).every(k=>['version','packageHash','runtimeHash','execution','from','to','concurrency','encoder','videoBitrate','trial'].includes(k)),'Unknown render option');
+  invariant(Object.keys(j).every(k=>['version','packageHash','runtimeHash','execution','imageHash','from','to','concurrency','encoder','videoBitrate','trial'].includes(k)),'Unknown render option');
+  invariant(j.execution==='cloudflare'?SHA.test(j.imageHash):j.imageHash===undefined,'Cloud image must be pinned by digest');
   if(j.trial!==undefined)integer(j.trial,1,10,'benchmark trial');
   integer(j.from,0,107999,'start frame'); integer(j.to,j.from+1,108000,'end frame');
   invariant(j.to-j.from<=1800,'Render units may not exceed 60 seconds');
