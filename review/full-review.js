@@ -36,7 +36,7 @@ const section=()=>sections[index],length=()=> (section().to-section().from)/30;
 const current=()=>section().from/30+(mode==='source'?source.currentTime/(section().sourceTo-section().sourceFrom)*length():ours.currentTime);
 const sourceLocal=local=>Math.max(0,Math.min(section().sourceTo-section().sourceFrom-.01,local/length()*(section().sourceTo-section().sourceFrom)));
 $('#sample-title').textContent=`Full ${duration(total)} remake`;$('#sample-summary').textContent='Sienna narration · all seven styles';
-$('#sample-context').textContent='Both players show their own full running time. Keep in sync follows matching sections even when their lengths differ. These are 720p review copies; the master is 1080p. The approved samples retain their original test audio. The illustrations and animation are local Qwen/LTX examples. Software steps are real OpenArt recordings. Full-video approval is pending your review.';
+$('#sample-context').textContent='Both players use the selected speed: 1× means natural speed for each video. Keep in sync aligns seeks and chapter starts; the shorter chapter waits at its end. These are 720p review copies; the master is 1080p. The approved samples retain their original test audio. The illustrations and animation are local Qwen/LTX examples. Software steps are real OpenArt recordings. Full-video approval is pending your review.';
 $('#full-link').setAttribute('aria-current','page');source.removeAttribute('poster');ours.removeAttribute('poster');
 document.querySelector('nav a').href='https://www.youtube.com/watch?v=rOl7ZLG4BRg';
 scrub.max=total;scrub.step=1/30;
@@ -55,7 +55,7 @@ for(const p of players){
 for(const s of sections){const button=document.createElement('button');button.textContent=s.name;button.dataset.section=s.index;button.onclick=()=>seek(s.from/30);$('.moments').append(button);}
 async function blob(file){if(!cache.has(file))cache.set(file,fetch(file,{credentials:'same-origin'}).then(async r=>{if(!r.ok)throw new Error('Review section unavailable');const b=await r.blob();if(!b.size||b.type.includes('text/html'))throw new Error('Expected video');return URL.createObjectURL(new Blob([b],{type:'video/mp4'}));}));return cache.get(file);}
 function pause(){acting=true;videos.forEach(v=>v.pause());acting=false;}
-function applyRates(){const rate=Number($('#speed').value)||1;ours.playbackRate=rate;source.playbackRate=rate*(sync.checked&&mode==='both'?(section().sourceTo-section().sourceFrom)/length():1);}
+function applyRates(){const rate=Number($('#speed').value)||1;videos.forEach(v=>v.playbackRate=rate);}
 function sound(value){desiredSound=value;acting=true;source.muted=value!=='source';ours.muted=value!=='ours';acting=false;$('#source-sound').textContent=source.muted?'muted':'sound on';$('#ours-sound').textContent=ours.muted?'muted':'sound on';$(`input[name=sound][value=${value}]`).checked=true;}
 function setLocal(local){seeking=true;ours.currentTime=Math.max(0,Math.min(length()-.005,local));source.currentTime=sourceLocal(local);seeking=false;draw();}
 async function loadSection(next,local=0,resume=false){
@@ -71,7 +71,7 @@ async function seek(value){pause();const at=Math.max(0,Math.min(total-1/30,value
 async function play(which='both'){
  if(loading)return;mode=which;acting=true;sync.checked=which==='both';applyRates();
  if(which!=='both'){videos.filter(v=>v!==(which==='source'?source:ours)).forEach(v=>v.pause());sound(which);}
- const chosen=which==='both'?videos:[which==='source'?source:ours];
+ const chosen=(which==='both'?videos:[which==='source'?source:ours]).filter(v=>!v.ended);
  try{await Promise.all(chosen.map(v=>v.play()));say(`Playing ${which==='both'?'together':which==='ours'?'Sienna':'source'} · ${section().name}`);}catch{pause();say('Click Play full video to start playback.');}finally{acting=false;}
 }
 function draw(){
@@ -85,7 +85,7 @@ function draw(){
  }
  document.querySelectorAll('[data-section]').forEach(b=>b.setAttribute('aria-current',String(+b.dataset.section===index)));
 }
-function tick(){if(!loading&&sync.checked&&mode==='both'&&!ours.paused){const wanted=sourceLocal(ours.currentTime);if(Math.abs(source.currentTime-wanted)>.2&&!source.seeking){seeking=true;source.currentTime=wanted;seeking=false;}}draw();requestAnimationFrame(tick);}
+function tick(){draw();requestAnimationFrame(tick);}
 $('#play-both').onclick=()=>play();$('#pause-both').onclick=()=>{pause();say('Paused.');};$('#restart').onclick=()=>seek(0);
 $('#source-only').onclick=()=>play('source');$('#ours-only').onclick=()=>play('ours');scrub.oninput=()=>seek(+scrub.value);
 $('#speed').onchange=applyRates;
@@ -94,13 +94,13 @@ document.querySelectorAll('input[name=sound]').forEach(r=>r.onchange=()=>sound(r
 async function step(delta){await seek(current()+delta/30);}
 $('#back-frame').onclick=()=>step(-1);$('#next-frame').onclick=()=>step(1);
 for(const v of videos){
- v.addEventListener('play',()=>{if(!acting&&!loading&&sync.checked){acting=true;const other=v===ours?source:ours;other.play().catch(()=>pause()).finally(()=>acting=false);}});
+ v.addEventListener('play',()=>{if(!acting&&!loading&&sync.checked){acting=true;const other=v===ours?source:ours;if(!other.ended)other.play().catch(()=>pause()).finally(()=>acting=false);else acting=false;}});
  v.addEventListener('pause',()=>{if(!acting&&!loading&&sync.checked&&!v.ended){acting=true;videos.filter(x=>x!==v).forEach(x=>x.pause());acting=false;}});
  v.addEventListener('seeking',()=>{if(!seeking&&!loading&&sync.checked){seeking=true;if(v===ours){const target=sourceLocal(ours.currentTime);if(Math.abs(source.currentTime-target)>.08)source.currentTime=target;}else{const target=source.currentTime/(section().sourceTo-section().sourceFrom)*length();if(Math.abs(ours.currentTime-target)>.08)ours.currentTime=target;}seeking=false;}draw();});
- v.addEventListener('ended',()=>{if(loading)return;if(v===source&&mode==='both')return;if(index<sections.length-1)loadSection(index+1,0,true);else{pause();say('Full video complete.');}});
+ v.addEventListener('ended',()=>{if(loading)return;if(mode==='both'&&!videos.every(video=>video.ended)){say('Waiting for the other chapter to finish at the selected speed.');return;}if(index<sections.length-1)loadSection(index+1,0,true);else{pause();say('Full video complete.');}});
 }
 document.addEventListener('keydown',e=>{if(e.target.closest('input,textarea,select,button,a,video'))return;if(e.code==='Space'){e.preventDefault();videos.some(v=>!v.paused)?pause():play();}if(['ArrowLeft','ArrowRight'].includes(e.code)){e.preventDefault();step(e.code==='ArrowLeft'?-1:1);}});
-function setStamp(){stamp=current();stampSource=section().sourceFrom+sourceLocal(stamp-section().from/30);$('#stamp').textContent=time(stamp);$('#source-stamp').textContent=`source ${time(stampSource)}`;}
+function setStamp(){stamp=current();stampSource=section().sourceFrom+source.currentTime;$('#stamp').textContent=time(stamp);$('#source-stamp').textContent=`source ${time(stampSource)}`;}
 $('#stamp-now').onclick=setStamp;$('#stamp').onclick=()=>seek(stamp);
 $('#note').addEventListener('focus',setStamp);
 $('#note').addEventListener('click',setStamp);
