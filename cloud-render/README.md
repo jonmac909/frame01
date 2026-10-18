@@ -1,6 +1,7 @@
 # Portable render pilot
 
-Additive CPU-render service for Frame 01. Qwen Image 2.1 and LTX 2.5 remain local;
+Additive CPU-render service for Frame 01. See [measured pilot results](BENCHMARK.md)
+before choosing the cloud path. Qwen Image 2.1 and LTX 2.5 remain local;
 all A-roll comes from HeyGen. This service cannot generate or purchase media.
 It does not change Frontier's installed engine or the approved movie.
 
@@ -57,7 +58,8 @@ Create a dedicated private R2 bucket, pin `containers[0].image` to the verified
 Cloudflare registry digest, set `RENDER_IMAGE_SHA256` to that digest without its
 `sha256:` prefix, and set `RENDER_RUNTIME_SHA256` to the matching code hash.
 Set `OWNER_TOKEN` with Wrangler's secret command, then deploy. The checked-in
-Dockerfile configuration is a build template, not proof of a deployment.
+configuration pins the tested private pilot image. For another account, change
+the image reference and bucket binding; never reuse another owner's token.
 
 Save `{ "url": "https://YOUR-WORKER.workers.dev", "token": "PRIVATE-TOKEN" }`
 outside version control. Use `execution:"cloudflare"`, software encoding and
@@ -88,7 +90,8 @@ remain required. A technical receipt is not editorial approval.
 ## Verification
 
 `npm test` and `npm run check` exercise the portable contracts and worker types.
-Actual local/cloud timing, deployment and quality evidence belong in a separate
-benchmark report. Until that report exists, this pilot establishes neither a
-cloud speed advantage nor a three-to-four-hour production guarantee. Frontier's
-14 style kits must pass their own sample checks before importing them.
+The [benchmark report](BENCHMARK.md) documents actual deployment, render and
+parity checks and their limits. It establishes neither a cloud speed advantage
+nor a three-to-four-hour production guarantee. Frontier's 14 style kits must pass
+their own sample checks before importing them. Authenticated `GET /workers`
+reports platform container state without starting a render.

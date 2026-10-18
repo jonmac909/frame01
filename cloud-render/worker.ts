@@ -13,6 +13,7 @@ export class RenderContainer extends Container<Env>{
   envVars={FRAME01_IMAGE_SHA256:this.env.RENDER_IMAGE_SHA256};
   override async fetch(request:Request){
     const pathname=new URL(request.url).pathname;
+    if(pathname==='/state')return json(await this.getState());
     if(pathname==='/stop'){await this.destroy();return json({stopped:true});}
     if(pathname==='/status'){
       const state=await this.getState();
@@ -46,7 +47,9 @@ export class RenderControl extends DurableObject<Env>{
       await this.ctx.storage.setAlarm(Date.now()+1000);return json(record,202);
     }
     const id=u.searchParams.get('id');if(id)return json(await this.ctx.storage.get('job:'+id)??{error:'Unknown job'},await this.ctx.storage.get('job:'+id)?200:404);
-    const jobs=[...(await this.ctx.storage.list<RecordJob>({prefix:'job:'})).values()];return json({reservedComputeUsd:await this.ctx.storage.get('reservedUsd')??0,computeCapUsd:Number(this.env.PILOT_COMPUTE_USD),maxWorkers:Number(this.env.MAX_WORKERS),jobs});
+    const jobs=[...(await this.ctx.storage.list<RecordJob>({prefix:'job:'})).values()];
+    if(u.searchParams.has('workers'))return json(await Promise.all(jobs.map(async j=>({id:j.id,state:await (await this.env.RENDERS.getByName(j.id).fetch('http://container/state')).json()}))));
+    return json({reservedComputeUsd:await this.ctx.storage.get('reservedUsd')??0,computeCapUsd:Number(this.env.PILOT_COMPUTE_USD),maxWorkers:Number(this.env.MAX_WORKERS),jobs});
   }
   override async alarm(){
     const jobs=[...(await this.ctx.storage.list<RecordJob>({prefix:'job:'})).values()].filter(j=>['queued','running'].includes(j.status));
@@ -78,6 +81,7 @@ async function handle(request:Request,env:Env){
   if(!env.OWNER_TOKEN||request.headers.get('Authorization')!=='Bearer '+env.OWNER_TOKEN)return json({error:'Unauthorized'},401);
   const u=new URL(request.url),parts=u.pathname.split('/').filter(Boolean),[kind,id,action]=parts;
   if(kind==='health')return json({ok:true,runtimeHash:env.RENDER_RUNTIME_SHA256,imageHash:env.RENDER_IMAGE_SHA256,providers:{images:'local:Qwen Image 2.1',clips:'local:LTX 2.5',aroll:'HeyGen'},maxWorkers:Number(env.MAX_WORKERS)});
+  if(kind==='workers'&&request.method==='GET')return env.CONTROL.getByName('frame01-pilot-v1').fetch('http://control/?workers=1');
   if(kind==='jobs')return env.CONTROL.getByName('frame01-pilot-v1').fetch(request.method==='POST'?new Request('http://control/',{method:'POST',body:JSON.stringify({job:await request.json(),base:u.origin})}):new Request('http://control/?'+(id?'id='+id:'')));
   invariant(SHA.test(id??''),'Expected SHA256 identity');
   if(kind==='blobs'){

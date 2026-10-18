@@ -57,6 +57,12 @@ The optional legacy HeyGen bridge still requires its chosen tab attached. Walkth
 
 ## Files and recovery
 
+The optional [CPU render pilot](cloud-render/README.md) provides private Cloudflare
+workers and a portable local renderer. [Measured results](cloud-render/BENCHMARK.md)
+favored local rendering for the tested samples, so production remains local. This
+does not yet integrate Frontier's production engine or approve full-episode cloud
+rendering. Generation providers and HeyGen limits remain unchanged.
+
 Projects, HeyGen allowance ledgers, imported media and exports live under `data/projects/<id>`. Keep `data/` private; it contains local session identifiers and the bridge token. Project events and media survive restart. Native recordings preserve raw MKV under `recordings/raw/`; `record.status` identifies interrupted captures and `record.stop` can normalize them once the prior owned recorder has exited. Never imply a capture passed until its MP4 and proof exist. Do not delete a project to get another HeyGen allowance for the same remake.
 
 The director uses Eve's supported local ChatGPT connection. If it reports missing credentials, close the background director and run **Connect Director.ps1**, then `/login`. Keys are managed by Eve; do not paste them into this app's source files. The app binds to loopback only.
