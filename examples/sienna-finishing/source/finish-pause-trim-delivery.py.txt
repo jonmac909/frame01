@@ -1,0 +1,77 @@
+"""Bind completed local pause-trim QA to the deliverable and publication handoff."""
+from pathlib import Path
+import hashlib,json,subprocess
+
+task=Path(__file__).resolve().parents[1];work=task/'work/pause-trim';out=task/'outputs'
+parent=task.parent/'i-cant-hear-anything-on-my'
+project=parent/'outputs/video-editor-agent/data/projects/nano-banana-cartoon-workflow-28043a87'
+receipt=json.loads((work/'render-proof.json').read_text());edit=json.loads((work/'edit-map.json').read_text())
+paired=json.loads((out/'Pause trimmed verification.json').read_text());speech=json.loads((out/'Pause trimmed speech verification.json').read_text());visual=json.loads((out/'Pause trimmed visual inspection.json').read_text());previews=json.loads((out/'Pause trimmed preview package.json').read_text());processes=json.loads((work/'qa-processes.json').read_text())
+sha=receipt['sha256']
+assert paired['sha256']==speech['sha256']==visual['sha256']==previews['masterSha256']==processes['sha256']==sha
+assert all(row['exitCode']==0 for row in processes['checks'])
+assert paired['frameComparison']['framesCompared']==27400 and not paired['frameComparison']['flags'] and not paired['audioComparison']['flags'] and not paired['seams']['flags']
+assert speech['expectedTokens']==2272 and speech['matchedTokens']==2269 and not any(row['kind']=='delete' for row in speech['differences'])
+expected_differences=[('replace','seedance','sea ants'),('replace','sixteen','16'),('replace','nine','9'),('insert','','and duration'),('insert','','surfaces')]
+assert [(d['kind'],d['expected'],d['heard']) for d in speech['differences']]==expected_differences
+speech['differenceAssessment']={
+    'result':'No missing phrase found. Raw differences retained.',
+    'nameAndNumeralVariants':['Seedance recognized as sea ants in chunk00; the retained original speech waveform is unchanged.','sixteen/nine recognized as16/9.'],
+    'overlapInsertions':[{'chunks':[11,12],'joinedSeconds':[336,337],'explanation':'Chunk11 ends with chosen duration. Chunk12 starts inside that same final word and recognizes and duration. The audio has one occurrence; keep-map and every retained audio segment comparison rule out duplication.'},{'chunks':[14,15],'joinedSeconds':[420,421],'explanation':'surfaces occurs at the overlapping end/start of both chunks. Raw merge only removes exact overlaps of two or more tokens, so this one-token repeat remains visible in the raw comparison.'}],
+    'basis':'Actual final-master ASR plus full picture keep-map and236 retained-segment waveform comparisons. No missing expected passage or newly duplicated source interval.',
+    'limitations':'Independent ASR is evidence, not a human listening or provider phoneme-sync certification.'
+}
+(out/'Pause trimmed speech verification.json').write_text(json.dumps(speech,indent=2),encoding='utf-8')
+delivered=out/'Frame 01 - Nano Banana cartoon workflow - pauses trimmed.mp4'
+assert delivered.exists() and hashlib.sha256(delivered.read_bytes()).hexdigest()==sha
+(out/'Pause trimmed edit map.json').write_bytes((work/'edit-map.json').read_bytes())
+(out/'Pause trimmed timing plan.json').write_bytes((project/'Pause trimmed plan.json').read_bytes())
+(out/'Pause trimmed render proof.json').write_bytes((work/'render-proof.json').read_bytes())
+site=parent/'outputs/frame01-review'
+head=subprocess.check_output(['git','rev-parse','HEAD'],cwd=site,text=True).strip()
+status=subprocess.check_output(['git','status','--porcelain'],cwd=site,text=True)
+assert head==previews['preservedSiteSourceCommit'] and not status
+files=[delivered,out/'Pause trimmed edit map.json',out/'Pause trimmed timing plan.json',out/'Pause trimmed render proof.json',out/'Pause trimmed verification.json',out/'Pause trimmed speech verification.json',out/'Pause trimmed visual inspection.json',out/'Pause trimmed preview package.json']
+delivery={'master':str(delivered),'sha256':sha,'frames':27400,'fps':30,'duration':27400/30,'previousDuration':29323/30,'removedSeconds':64.1,'narrationQuietRemovedSeconds':1799/30,'exampleLeadRemovedSeconds':124/30,'speechRate':1,'narrationCuesRetained':177,'removedCues':0,'qa':{'everyRetainedFrameCompared':27400,'frameFlags':0,'retainedAudioSegmentsCompared':len(paired['audioComparison']['segments']),'audioFlags':0,'cutBoundaryChecks':len(paired['seams']['checks']),'clickScreenFlags':0,'joinPicturesActuallyInspected':948,'joinSheetsActuallyInspected':24,'exampleStartSheetsActuallyInspected':7,'asrExpectedTokens':2272,'asrRawMatchedTokens':2269,'asrDifferenceAssessment':'No missing phrase; one name/numeral variants and two overlapping-chunk insertion groups reviewed.'},'privateReview':{'url':'https://frame01-sienna-source-review.rubyvole3.chatgpt.site/','projectId':'appgprj_6ad2c1d0c81881919d41d8e55b17d2c1','updated':False,'stillHostedMasterSha256':edit['sourceMasterSha256'],'existingSiteSourceCommit':head,'sourceCheckoutClean':True,'readyPackage':previews['stage'],'blocker':'Official source helper could not reach the Site Git remote in either of two attempts: getaddrinfo() thread failed to start. Windows Git-bin/TAR_OPTIONS fix did not resolve it. Both owned helper sessions are finished; no source commit/push/save/deploy occurred.'},'playback':'Actual local Chromium sample observed at14.608047s, duration913.333333s,1x,unmuted,readyState4,errornull. The temporary tab later disappeared; no full natural-speed playback claim for this cut.','preserved':'Previous16:17 master and historical QA,177 narration cues, original provider picture/audio timing within retained passages, current review-player UI, original source previews, and existing private audience.','files':[{'path':str(f),'bytes':f.stat().st_size,'sha256':hashlib.sha256(f.read_bytes()).hexdigest()} for f in files],'limitations':['New presenter joins are direct cuts during measured quiet.','Owner creative approval remains separate from agent verification.']}
+(out/'Pause trimmed delivery.json').write_text(json.dumps(delivery,indent=2))
+summary=f'''# Pause-trimmed video
+
+Final runtime: **15:13.33** (27,400 frames at30fps), down from16:17.43. Removed **1:04.10**:59.97seconds of narration quiet and4.13seconds of example lead-ins. All177 narration cues remain; speech passages play at unchanged1x speed. No new generation or recordings.
+
+The opening dialogue now begins about140ms after its retained clip start. Its second speaker's preparation is shortened too. The main badger setup and repeated dialogue leads are tightened. Every example start was inspected; immediate visual action in silent originals remains. Narrated example previews keep all narrator words.
+
+Verified all27,400 retained output pictures against the exact previous-master edit map,236 paired audio segments and237 edit boundaries, with0 flags. All24 boundary sheets/948 frames were actually inspected. Actual output speech was transcribed independently:2269/2272 raw token matches; reviewed name/numeral recognition variants and two overlapping-chunk insertions, with no missing phrase found. Direct cuts replace quiet intervals; no word-rate acceleration.
+
+Master SHA256: `{sha}`
+
+The existing private review page still shows the previous16:17 master. Both native Sites source-opening attempts failed at Git DNS with `getaddrinfo() thread failed to start`; the verified Windows setup did not resolve it. The exact refreshed review package is ready, and the prior page/UI/access remain unchanged. See Pause trimmed publication handoff.md for completion details.
+'''
+(out/'Pause trimmed notes.md').write_text(summary,encoding='utf-8')
+handoff=f'''# Pause-trimmed cut — publication handoff
+
+Human request: remove narration pauses and pauses at the start of example clips. This supersedes retaining all original silence, while preserving every word and native speaking rate.
+
+**Local media complete; private Site update blocked by remote Git DNS.** No active renderer, QA watcher, ASR, preview preparer or source helper remains. Render35984, QA93778 and preview47778 completed0. Source helpers99560 and76192 both ended after the remote failed with `getaddrinfo() thread failed to start`. Do not duplicate rendering or repeat the identical source attempt without network recovery.
+
+- New master: `{delivered}`
+- Master in project exports/pause-trim has identical SHA: `{sha}`
+- 27,400 frames /913.333333seconds /1920x1080 /30fps /48kHz stereo; all177 cues, zero removed cues, speech rate1x.
+- Reduced64.1seconds (1799 narration-quiet frames +124 example-lead frames). Full paired edit map in Pause trimmed edit map.json; timing metadata in project Pause trimmed plan.json is BAKED and must not be rerendered as a fresh composition.
+- Fresh QA in Pause trimmed delivery.json, verification.json, speech verification.json and visual inspection.json. Every output frame matched planned old-master picture,236 audio ranges/237 seams0flags; all24 join sheets actually viewed. ASR differences actually assessed; no missing phrase. Prior709274 QA remains historical.
+
+## Ready private-review package
+
+`{previews['stage']}`
+
+52 files (see full hashes in Pause trimmed preview package.json), including18 actual1280x720/30fps audio-equipped chapter copies, all correct frame counts and under25MiB each. Nine source copies are preserved; nine shorter remakes and full-manifest.json carry newSHA/newchapter boundaries. Current Site source `{head}` was copied unchanged, preserving BOTH natural1x/2x controls, chapter waiting, actual-time comment capture, stable IDs, version attribution and owner-private access. The source checkout remains clean. No GitHub source change is required for the media edit.
+
+## Complete when Git connectivity is restored
+
+Use the EXISTING Site project `appgprj_6ad2c1d0c81881919d41d8e55b17d2c1`, URL https://frame01-sienna-source-review.rubyvole3.chatgpt.site/ . Latest confirmed audience: custom, owner only, no external visitors. Refresh get_site if ownership/access or source changes. Do not create a new Site or change access.
+
+Use the native Sites skill workflow and a fresh short-lived credential (the worker's credential was discarded). Reuse the existing source checkout `{site}`. Before the official helper on this Windows host, prefix process PATH with C:\\Program Files\\Git\\bin; set process TAR_OPTIONS to --force-local, and use a forward-slash absolute archive path. Keep credentials in memory/hidden stdin only.
+
+After the official source opener returns the current source, copy ONLY the staged new full-manifest.json and nine media/full-remake-XX.mp4 plus their proof.json files into its dist. Verify the source UI and source previews still match the returned source. Run the helper's exact commit/push/package workflow, then native owner-private save/deploy. Preserve returned source/version/deployment IDs. Do not deploy the old709274 package or claim live15:13 until the native deployment succeeds. No outgoing message, automation or generation was made by the worker.
+'''
+(out/'Pause trimmed publication handoff.md').write_text(handoff,encoding='utf-8')
+print(json.dumps({'sha256':sha,'frames':27400,'duration':27400/30,'removedSeconds':64.1,'asrNoMissingPhrase':True,'localDelivery':str(delivered),'siteUpdated':False,'siteSourceUnchanged':True}),flush=True)

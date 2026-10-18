@@ -31,6 +31,8 @@ Use `automated-check` only for tests that actually ran. Missing or clipped speec
 
 ## Collection boundary
 
+The owner stopped recurring review checks on October 18, 2026. Keep those schedules paused. The collection mechanism below remains available for an authorized editing pass; it is not currently scheduled to run every 30 minutes.
+
 The hosted reviewer currently retains comments in the owner's Chrome local storage. A Codex feedback monitor reads the registered review pages through supported browser controls and imports new notes; it needs Codex running and the signed-in Chrome profile available. It must not claim background server synchronization. Persisted comments and learned checks remain available after browser or agent restarts. Future review deployments must retain a stable project mapping and exact version identity. A proper authenticated server-backed review inbox is the durable next replacement for browser collection.
 
 No automatic model-weight training, provider settings changes, paid retries, arbitrary code execution from comments, or global transplantation of another project's style occurs.

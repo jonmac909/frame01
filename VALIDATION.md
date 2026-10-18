@@ -1,5 +1,7 @@
 # V1 validation — October 16, 2026
 
+Historical first-build record. Counts, allowance status and early samples below describe October 16, not the current release. See [RELEASE_VALIDATION.md](RELEASE_VALIDATION.md) for the owner-approved October 18 master and current software verification.
+
 - TypeScript typecheck passed.
 - All 19 focused tests passed, including concurrent/consumed attempt protection, recovery after a receipt-only crash, missing reference rejection, wrong timeline runtime, voice speed/tone, source-derived word budgets, rolling caption deduplication, typed action rejection, local GPU idle checks, full 4 fps scanning, real recording normalization, invalid export audio/dimensions/fps/duration, and rejection of subtitles, added labels and presenter insets that conflict with the reference.
 - Eve production build passed on Windows. The local director connected through Eve's supported ChatGPT connection and used editor tools to read the first project's avatar/voice/allowance, search course sources, and save the rewritten narration and production notes.

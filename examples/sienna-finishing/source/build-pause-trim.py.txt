@@ -1,0 +1,119 @@
+"""Apply a frame-accurate, paired picture/sound edit to the accepted revision."""
+from pathlib import Path
+import copy, hashlib, json, subprocess, time, wave
+import numpy as np
+
+task=Path(__file__).resolve().parents[1]
+project=task.parent/'i-cant-hear-anything-on-my/outputs/video-editor-agent/data/projects/nano-banana-cartoon-workflow-28043a87'
+work=task/'work/pause-trim'
+source=project/'exports/review-revision/Frame 01 - Nano Banana cartoon workflow - review revision.mp4'
+export=project/'exports/pause-trim';export.mkdir(exist_ok=True)
+name='Frame 01 - Nano Banana cartoon workflow - pauses trimmed.mp4'
+dest=export/name
+old=json.loads((project/'Review revision plan.json').read_text())
+analysis=json.loads((work/'analysis.json').read_text())
+assert hashlib.sha256(source.read_bytes()).hexdigest()==analysis['sourceMasterSha256']
+cuts=analysis['narrationCuts']+[
+    {'from':302,'to':389,'kind':'example-lead-in','shot':'source-2','reason':'Remove frozen first-clip lead and silent preparation, retain animated card entrance and about140ms before dialogue.'},
+    {'from':601,'to':621,'kind':'example-lead-in','shot':'source-2','reason':'Remove second speaker silent preparation, retain about180ms before the first audible syllable.'},
+    {'from':7241,'to':7253,'kind':'example-lead-in','shot':'source-35','reason':'Tighten pre-bite setup; bite and all audible example activity retained.'},
+    {'from':22177,'to':22180,'kind':'example-lead-in','shot':'source-100','reason':'Trim100ms from quiet dialogue lead, retain about140ms before activity.'},
+    {'from':22392,'to':22394,'kind':'example-lead-in','shot':'source-100','reason':'Trim67ms from second quiet dialogue lead, retain about140ms before activity.'},
+]
+cuts.sort(key=lambda c:c['from'])
+assert all(0<=c['from']<c['to']<=old['frames'] for c in cuts)
+assert all(a['to']<=b['from'] for a,b in zip(cuts,cuts[1:]))
+for c in cuts:
+    if c['kind']=='example-lead-in':
+        assert not any(s['from']<c['to'] and s['to']>c['from'] for s in old['speech'])
+keep=[];cursor=0;newcursor=0
+for c in cuts+[{'from':old['frames'],'to':old['frames']}]:
+    if cursor<c['from']:
+        count=c['from']-cursor
+        keep.append({'oldFrom':cursor,'oldTo':c['from'],'from':newcursor,'to':newcursor+count})
+        newcursor+=count
+    cursor=c['to']
+
+def point(frame):
+    return frame-sum(max(0,min(frame,c['to'])-c['from']) for c in cuts if c['from']<frame)
+
+def intervals(a,b):
+    return [(max(a,k['oldFrom']),min(b,k['oldTo'])) for k in keep if k['oldFrom']<b and k['oldTo']>a]
+
+plan=copy.deepcopy(old);plan['frames']=newcursor
+plan['speech']=[]
+for s in old['speech']:
+    for a,b in intervals(s['from'],s['to']):
+        plan['speech'].append({'from':point(a),'to':point(b),'trim':s['trim']+a-s['from']})
+plan['sound']=[]
+for s in old['sound']:
+    for a,b in intervals(s['from'],s['to']):
+        plan['sound'].append({**s,'from':point(a),'to':point(b),'trim':s['trim']+a-s['from']})
+for s in plan['sections']:
+    s['from'],s['to']=point(s['from']),point(s['to'])
+for shot,original in zip(plan['shots'],old['shots']):
+    shot['from'],shot['to']=point(original['from']),point(original['to'])
+    shot['bakedOriginalFrom']=original['from'];shot['bakedOriginalTo']=original['to']
+    if 'parts' in original:
+        parts=[]
+        for part in original['parts']:
+            for a,b in intervals(original['from']+part['from'],original['from']+part['to']):
+                parts.append({**part,'from':point(a)-shot['from'],'to':point(b)-shot['from'],'trim':part['trim']+a-original['from']-part['from']})
+        shot['parts']=parts
+    if 'words' in original:
+        shot['words']=[{**w,'from':point(original['from']+w['from'])-shot['from']} if isinstance(w,dict) and 'from' in w else w for w in original['words']]
+plan['sfx']=[point(f) for f in old['sfx']]
+for key in ['ctas','titles']:
+    for item in plan['reviewEffects'][key]:
+        item['from'],item['to']=point(item['from']),point(item['to'])
+plan['reviewEffects']['flashes']=[point(f) for f in old['reviewEffects']['flashes']]
+plan['limitations']=[
+    'Every spoken word retained at unchanged speech rate; quiet gaps removed per the latest human request.',
+    'This is a baked, paired picture/audio edit of the verified review revision; the edit map is authoritative for all animation timing. Do not rerender this metadata as an unbaked composition.',
+    *old['limitations'][1:]
+]
+plan['bakedEdit']={'sourceMaster':str(source),'sourceSha256':analysis['sourceMasterSha256'],'editMap':str(export/'Pause trim edit map.json'),'rate':1,'removedCues':0}
+(project/'Pause trimmed plan.json').write_text(json.dumps(plan,indent=2))
+report={'fps':30,'sourceMaster':str(source),'sourceMasterSha256':analysis['sourceMasterSha256'],'oldFrames':old['frames'],'frames':newcursor,'duration':newcursor/30,'removedFrames':old['frames']-newcursor,'removedSeconds':(old['frames']-newcursor)/30,'narrationRemovedFrames':analysis['narrationRemovedFrames'],'exampleRemovedFrames':sum(c['to']-c['from'] for c in cuts if c['kind']=='example-lead-in'),'rate':1,'removedCues':0,'cuts':cuts,'keep':keep,'examplesReviewed':analysis['examples'],'exampleInspection':'All31 distinct asset/trim starts visually inspected in seven contact sheets. Moving silent action retained. Narrated previews cannot lose narrator words.'}
+(export/'Pause trim edit map.json').write_text(json.dumps(report,indent=2))
+(work/'edit-map.json').write_text(json.dumps(report,indent=2))
+print(json.dumps({k:v for k,v in report.items() if k not in ['cuts','keep','examplesReviewed']}),flush=True)
+
+# Extract exact48kHz PCM and select1600samples per retained30fps frame.
+wav=work/'paired-trimmed-audio.wav'
+raw=np.frombuffer(subprocess.check_output([r'C:\ffmpeg\bin\ffmpeg.exe','-v','error','-i',str(source),'-vn','-ar','48000','-ac','2','-f','f32le','-']),dtype=np.float32).reshape(-1,2)
+expected=old['frames']*1600
+if len(raw)<expected:
+    assert expected-len(raw)<=1024
+    raw=np.pad(raw,((0,expected-len(raw)),(0,0)))
+assert len(raw)>=expected
+with wave.open(str(wav),'wb') as target:
+    target.setnchannels(2);target.setsampwidth(3);target.setframerate(48000)
+    for k in keep:
+        samples=raw[k['oldFrom']*1600:k['oldTo']*1600]
+        packed=np.rint(np.clip(samples,-1,1)*8388607).astype('<i4').view(np.uint8).reshape(-1,4)[:,:3].tobytes()
+        target.writeframes(packed)
+del raw
+with wave.open(str(wav),'rb') as check:assert check.getnframes()==newcursor*1600
+metadata=work/'chapters.ffmeta'
+lines=[';FFMETADATA1','title=Nano Banana cartoon workflow - pauses trimmed']
+for section in plan['sections']:
+    lines+=['[CHAPTER]','TIMEBASE=1/30000',f"START={section['from']*1000}",f"END={section['to']*1000}",f"title={section['name']}"]
+metadata.write_text('\n'.join(lines)+'\n')
+filters=work/'picture-edit.fffilter'
+selection='+'.join(f"between(n,{c['from']},{c['to']-1})" for c in cuts)
+# Preserve full-range input colors through explicit full-range conversion.
+filters.write_text(f"select='not({selection})',settb=1/30,setpts=N,scale=in_range=full:out_range=full,format=yuv420p")
+command=[r'C:\ffmpeg\bin\ffmpeg.exe','-hide_banner','-loglevel','warning','-y','-threads','4','-i',str(source),'-i',str(wav),'-i',str(metadata),'-map','0:v:0','-map','1:a:0','-map_metadata','2','-map_chapters','2','-filter_script:v',str(filters),'-frames:v',str(newcursor),'-r','30','-fps_mode','cfr','-enc_time_base:v','1/30','-c:v','h264_nvenc','-bf','0','-preset','p6','-tune','hq','-rc','vbr','-cq','17','-b:v','0','-profile:v','high','-color_range','pc','-colorspace','bt470bg','-c:a','aac','-b:a','320k','-ar','48000','-movflags','+faststart','-video_track_timescale','30000',str(dest)]
+(work/'render-command.json').write_text(json.dumps(command,indent=2))
+began=time.monotonic()
+with (work/'render.log').open('w') as log:subprocess.run(command,stdout=log,stderr=log,check=True)
+probe=json.loads(subprocess.check_output([r'C:\ffmpeg\bin\ffprobe.exe','-v','error','-show_streams','-show_format','-of','json',str(dest)]))
+video=next(s for s in probe['streams'] if s['codec_type']=='video')
+assert int(video['nb_frames'])==newcursor and video['r_frame_rate']=='30/1'
+assert video['width']==1920 and video['height']==1080
+assert abs(float(video['duration'])-newcursor/30)<.00001
+receipt={'sha256':hashlib.sha256(dest.read_bytes()).hexdigest(),'frames':newcursor,'duration':newcursor/30,'removedCues':0,'rate':1,'bytes':dest.stat().st_size,'renderSeconds':time.monotonic()-began,'editMapSha256':hashlib.sha256((export/'Pause trim edit map.json').read_bytes()).hexdigest(),'planSha256':hashlib.sha256((project/'Pause trimmed plan.json').read_bytes()).hexdigest(),'probe':probe,'method':'Frame-accurate select of existing accepted master, paired exact1600-sample audio edits, NVENC high-quality CQ17 encode; no atempo or speech-rate change.'}
+Path(str(dest)+'.proof.json').write_text(json.dumps(receipt,indent=2))
+(work/'render-proof.json').write_text(json.dumps(receipt,indent=2))
+print(json.dumps({k:v for k,v in receipt.items() if k!='probe'}),flush=True)

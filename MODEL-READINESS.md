@@ -1,23 +1,33 @@
-# Deterministic Frame 01 requirements
+# Model readiness and deterministic operation
 
-The user wants ordinary production runs to work reliably with GPT 6.1 Sol and Opus 5.5. Complete the end-to-end pipeline first; then test those models against the same inputs and checks. Do not claim a model is supported merely because its name is configured.
+The owner approved the 15:13.33 Sienna cut on October 18, 2026. It uses the completed Avatar III / Nelly / Warm / 1.0x replacement, preserves every narration cue and incorporates the review corrections. The accelerated A-roll and rejected samples are historical. Approval establishes this result, not reliable unattended operation for every new reference or model.
 
-Already enforced in code: one durable draft/video reservation per remake; no automatic reset after uncertain outcomes; saved script fingerprint; selected avatar/voice/model/tone checks; reference fingerprint; complete ordered timing windows; section word budgets within 6%; overall word budget within 2%; no spoken production directions; timeline asset bounds and export media proof.
+## Enforced in the application
 
-Added October 16: source word budgets are recomputed from deduplicated captions, not trusted model fields. Missing reference runtime/captions and non-finite timing values fail closed. Exclusive attempt receipts prevent a crash between reservation and project persistence from reopening the HeyGen allowance. Final timelines must match the reference to the output frame; exports must contain non-silent audio and 1920 × 1080 video at 30 fps. Reference footage is rejected as a remake clip. The director uses typed operation arguments, bounded transcript pages, single-section reads, compact project results, and a code-selected next action. Submitted narration is read-only in the UI. Local connection credentials survive editor restarts.
+- Durable one-draft/one-video reservation, exclusive attempt receipts, narration/reference fingerprints and selected avatar/voice/model/tone/speed checks. Crashes and uncertain outcomes never reopen the paid allowance. Resolve the existing job instead of submitting again.
+- Source-derived close-rewrite budgets, complete timing windows, finite values and no spoken production directions. Word counts constrain rewriting; they do not prove actual timing or semantic equivalence.
+- New-project edit contracts pin source, plan, narration, measured word anchors, assets, event coverage and the runtime decision. Stale inputs, unresolved required events, narration loss, cuts inside words and inconsistent demo audio block rendering.
+- Seven typed effect kinds, shared word/frame anchors for graphics and SFX, controlled audio assembly, content-aware section caching and persistent jobs. The model supplies validated parameters for routine effects.
+- Versioned feedback imports and artifact-bound verification. Verified corrections add conditional quality checks; another project's exact logos, fonts or creative choices do not become universal rules.
 
-Run `npm test`, `npm run typecheck`, and `npm run build` for the guardrail suite. A model cannot lower the source word budgets or force a duplicate submission through tool arguments. This does not prove semantic equivalence, correct visual timing, or a provider's render quality.
+The default contract runtime policy is source ±30 seconds. A recorded natural-pace decision can permit longer output, as the owner did for Sienna. Never delete narration or rush speech to meet a duration target. Legacy guards are not a reason to bypass the new contract. See [DETERMINISTIC_EDITING.md](DETERMINISTIC_EDITING.md).
 
-Verified on the first project: all 177 exported HeyGen cues match the saved narration, all 47 paragraph starts have exact cue boundaries, the full downloaded reference has 3,004 samples at 4 fps, the existing-Chrome extension records real OpenArt footage, and Qwen Image 2.1/LTX 2.5 produce and collect assets through GPU1's existing idle-gated queue. The first 30-second edit test was rejected for failing to match the reference. Its replacement is a 19.243-second character-sheet sample, reviewed against five paired source frames. The sample removes added captions and labels, uses the source's card/zoom/pan/presenter sequence, and adds quiet pack whooshes at visible movements. It does not prove full-video or exact sound-design fidelity.
+## Operator procedure
 
-The current reference's saved visual policy rejects burned-in captions and added labels, and restricts circular presenters to software footage. The live API rejection was checked after restart. The old paragraph-weighted recipe is disabled. Full assembly must use actual source shot timing; do not fill missing demonstrations with arbitrary repeated clips or static holds. Original 30-fps footage is required where quarter-second sampling is insufficient for a precise cut.
+Use compact preflight failures and bounded `reference.read`, `reference.frames`, `contract.events` and `feedback.context` pages. Repair the named event/section, validate, and reuse unchanged outputs. A render job's technical completion is separate from audiovisual review and owner approval.
 
-Still required before unattended production: full-remake audiovisual review, end-to-end automatic HeyGen settings verification across its separate panels, and regression tests with GPT 6.1 Sol and Opus 5.5. The current paid A-roll was mistakenly submitted at 1.5x and is accepted by the user only for this test; future runs are guarded at 1.0x. Timing and word-budget checks do not prove semantic equivalence, lip sync or graphic alignment. Reference images and generated motion also need content review.
+Source analysis uses the downloaded full video at 4 FPS, plus native frames for fast transitions. Real walkthrough recording uses the automatic window recorder and signed-in Chrome without extension attachment. The optional legacy HeyGen bridge still needs its selected tab attached. Generation uses GPU1's existing idle-gated queue and durable receipts; never preempt a job or resubmit after an uncertain response.
 
-Keep model calls bounded: supply one source section and its timing/word budget; require structured outputs; validate in code; return compact summaries with artifact references instead of full transcripts; retry only the failed non-paid step. Never retry HeyGen submission after an uncertain outcome. Resolve the saved job ID instead. Keep generation settings and source IDs outside model discretion.
+Check source/output visuals, complete spoken phrases, each example's native synchronized sound and transition/SFX timing. Listen at player 1x. A scan, checksum or agent-written label cannot replace these observations. Preserve approved masters and their evidence. Keep paused recurring checks off unless the owner requests otherwise.
 
-One successful paid submission should produce all A-roll for the remake. Determinism prevents duplicate actions and invalid inputs; it cannot guarantee a third-party render succeeds or that generated visuals are perfect.
+## Qualification still required
 
-## GitHub publication condition
+Test GPT 6.1 Sol and Opus 5.5 on the same representative inputs, retaining failures, retries, elapsed time, media and owner review results. A configured model name or one assisted movie is not a repeatability benchmark. HeyGen panel changes, browser permissions, source interpretation, forced alignment and private publication remain possible intervention points.
 
-The user authorized copying the full reusable Frame 01 system to https://github.com/jonmac909/frame01 **after the first video is successfully recreated and verified end to end**. Include source code, the Chrome extension, setup/operating documentation, dependency locks, and tests. Keep credentials, browser/session data, downloaded course materials, private media, node_modules, and generated caches out of Git. Preserve local media; exclusions affect publication only. Do not publish early or claim the condition is met from an A-roll submission or a test clip alone.
+Pause trimming is an agent-assisted finishing step. Its exact first-project implementation is archived in [examples/sienna-finishing](examples/sienna-finishing/README.md); it is not a generic director command.
+
+Run `npm test`, `npm run typecheck` and `npm run build` for software checks. Isolated render/fixture checks are documented in [DETERMINISTIC_EDITING.md](DETERMINISTIC_EDITING.md). These tests do not guarantee acting quality, lip sync, motion matching or the 3–4 hour target.
+
+## Publication
+
+The first complete movie is owner-approved. The reusable system is released at https://github.com/jonmac909/frame01. Preserve its approved baseline and exclude credentials, session data, private feedback, course/reference media, generated media, local models and caches. Verify the actual remote commit after pushing.

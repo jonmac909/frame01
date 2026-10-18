@@ -1,0 +1,75 @@
+"""Verify every trimmed output frame and paired audio against the accepted input."""
+from pathlib import Path
+import hashlib,json,math,subprocess,time
+import numpy as np
+import cv2
+from PIL import Image,ImageDraw
+
+task=Path(__file__).resolve().parents[1]
+project=task.parent/'i-cant-hear-anything-on-my/outputs/video-editor-agent/data/projects/nano-banana-cartoon-workflow-28043a87'
+work=task/'work/pause-trim'
+edit=json.loads((work/'edit-map.json').read_text())
+source=Path(edit['sourceMaster'])
+dest=project/'exports/pause-trim/Frame 01 - Nano Banana cartoon workflow - pauses trimmed.mp4'
+proof=json.loads(Path(str(dest)+'.proof.json').read_text())
+assert hashlib.sha256(dest.read_bytes()).hexdigest()==proof['sha256']
+ffmpeg=r'C:\ffmpeg\bin\ffmpeg.exe'
+selection='+'.join(f"between(n,{c['from']},{c['to']-1})" for c in edit['cuts'])
+filters=work/'verification-picture.fffilter'
+filters.write_text(f"select='not({selection})',scale=160:90:in_range=full:out_range=full,format=rgb24")
+log1=(work/'verify-source-decode.log').open('w');log2=(work/'verify-target-decode.log').open('w')
+src=subprocess.Popen([ffmpeg,'-v','error','-threads','2','-i',str(source),'-an','-filter_script:v',str(filters),'-fps_mode','passthrough','-f','rawvideo','-'],stdout=subprocess.PIPE,stderr=log1)
+target=subprocess.Popen([ffmpeg,'-v','error','-threads','2','-i',str(dest),'-an','-vf','scale=160:90:in_range=full:out_range=full,format=rgb24','-fps_mode','passthrough','-f','rawvideo','-'],stdout=subprocess.PIPE,stderr=log2)
+metrics=[];flags=[];frame=0;began=time.monotonic()
+while True:
+    a=src.stdout.read(160*90*3);b=target.stdout.read(160*90*3)
+    if not a or not b:
+        assert not a and not b,(frame,len(a),len(b));break
+    assert len(a)==len(b)==160*90*3
+    expected=np.frombuffer(a,np.uint8).astype(np.float32);actual=np.frombuffer(b,np.uint8).astype(np.float32)
+    delta=expected-actual;mae=float(np.mean(abs(delta)));mse=float(np.mean(delta*delta));psnr=10*math.log10(255*255/max(mse,1e-9))
+    metrics.append((mae,psnr))
+    if mae>4 or psnr<25:flags.append({'frame':frame,'mae':mae,'psnr':psnr})
+    frame+=1
+    if frame%3000==0:print(json.dumps({'framesCompared':frame,'flags':len(flags)}),flush=True)
+assert src.wait()==target.wait()==0
+log1.close();log2.close()
+assert frame==edit['frames']
+
+def decode(path):
+    return np.frombuffer(subprocess.check_output([ffmpeg,'-v','error','-i',str(path),'-vn','-ac','1','-ar','48000','-f','f32le','-']),np.float32)
+original=decode(source);actual=decode(dest);rows=[];seams=[]
+for k in edit['keep']:
+    a,b=k['from']*1600,min(k['to']*1600,len(actual));n=b-a
+    if n<2400:continue
+    # Actual paired audio over the whole retained segment, excluding AAC edge ringing.
+    margin=min(480,n//5);x=original[k['oldFrom']*1600+margin:k['oldFrom']*1600+n-margin];y=actual[a+margin:b-margin]
+    rms=float(np.sqrt(np.mean(x.astype(float)**2)))
+    corr=float(np.dot(x.astype(float),y.astype(float))/max(np.linalg.norm(x.astype(float))*np.linalg.norm(y.astype(float)),1e-12)) if rms>1e-5 else None
+    rows.append({'from':k['from'],'to':k['to'],'oldFrom':k['oldFrom'],'rmsDbfs':20*math.log10(max(rms,1e-9)),'correlation':corr})
+for c in edit['cuts']:
+    new=c['from']-sum(x['to']-x['from'] for x in edit['cuts'] if x['to']<=c['from']);sample=new*1600
+    if not 960<sample<len(actual)-960:continue
+    region=actual[sample-12000:sample+12000]
+    jump=abs(float(actual[sample]-actual[sample-1]));baseline=max(float(np.percentile(abs(np.diff(region)),99.9)),1e-8)
+    seams.append({'frame':new,'oldFrom':c['from'],'oldTo':c['to'],'kind':c['kind'],'jump':jump,'jumpVsLocalP999':jump/baseline,'flag':jump>.03 and jump/baseline>4})
+report={'sha256':proof['sha256'],'sourceMasterSha256':edit['sourceMasterSha256'],'oldFrames':edit['oldFrames'],'frames':frame,'duration':frame/30,'removedSeconds':edit['removedSeconds'],'rate':1,'frameComparison':{'method':'Every decoded output frame compared in sequence to the exact original keep-map at160x90 RGB, full-range conversion for both. This detects ordering, duplicate/lost retained frames, blank frames and color-range errors; lossy encode differences are permitted.','framesCompared':frame,'meanMae':float(np.mean([m[0] for m in metrics])),'maximumMae':max(m[0] for m in metrics),'minimumPsnr':min(m[1] for m in metrics),'flags':flags,'seconds':time.monotonic()-began},'audioComparison':{'method':'Every retained segment actual48kHz mono waveform compared at the exact paired video frame offset, excluding10ms AAC boundary ringing. Quiet-only segments are excluded from correlation.','segments':rows,'flags':[r for r in rows if r['correlation'] is not None and r['correlation']<.97]},'seams':{'checks':seams,'flags':[s for s in seams if s['flag']]},'limitations':['Preserves the original provider lip-sync relationship; does not newly certify provider phoneme accuracy.','No human listening claimed. ASR and visual boundary inspection are recorded separately.']}
+(task/'outputs/Pause trimmed verification.json').write_text(json.dumps(report,indent=2))
+
+# Every new join: last retained frame and first retained frame, plus six-frame contexts.
+cap=cv2.VideoCapture(str(dest));panels=[]
+for i,c in enumerate(edit['cuts']):
+    new=c['from']-sum(x['to']-x['from'] for x in edit['cuts'] if x['to']<=c['from'])
+    panel=Image.new('RGB',(960,166),'#111820');draw=ImageDraw.Draw(panel)
+    draw.text((5,3),f"{i+1:03} {c['kind']} | new {new/30:.3f}s | removed {(c['to']-c['from'])/30:.3f}s | old {c['from']/30:.3f}-{c['to']/30:.3f}",fill='white')
+    for j,f in enumerate([max(0,new-6),new-1,new,min(edit['frames']-1,new+5)]):
+        cap.set(cv2.CAP_PROP_POS_FRAMES,f);ok,pix=cap.read();assert ok,f
+        panel.paste(Image.fromarray(cv2.cvtColor(cv2.resize(pix,(232,130)),cv2.COLOR_BGR2RGB)),(j*240+4,27))
+    panels.append(panel)
+cap.release();sheets=[]
+for i in range(0,len(panels),10):
+    sheet=Image.new('RGB',(1920,166*5),'#111820')
+    for j,panel in enumerate(panels[i:i+10]):sheet.paste(panel,((j%2)*960,(j//2)*166))
+    path=work/f'cut-joins-{i//10:02}.jpg';sheet.save(path,quality=93);sheets.append(str(path))
+(work/'join-sheets.json').write_text(json.dumps({'sha256':proof['sha256'],'joins':len(panels),'sheets':sheets,'review':'Pending actual inspection'},indent=2))
+print(json.dumps({'framesCompared':frame,'frameFlags':len(flags),'audioSegments':len(rows),'audioFlags':len(report['audioComparison']['flags']),'seamFlags':len(report['seams']['flags']),'joinSheets':len(sheets)}),flush=True)

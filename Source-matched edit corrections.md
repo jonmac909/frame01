@@ -1,5 +1,7 @@
 # Source-matched edit correction
 
+Historical first-preview correction notes. The later full video and feedback revisions are now owner-approved; see [APPROVED_EDITING_METHOD.md](APPROVED_EDITING_METHOD.md) and [RELEASE_VALIDATION.md](RELEASE_VALIDATION.md). Remaining-work statements below refer to the earlier sample stage.
+
 The first preview was rejected because it used an invented generic composition. Passing media checks did not prove a match to the reference.
 
 ## Course material applied

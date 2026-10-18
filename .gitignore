@@ -17,6 +17,8 @@ bin/
 .render-bundle-first-minute/
 .render-bundle-*/
 work/
+__pycache__/
+*.py[cod]
 .openai/
 review/media/
 review/full-manifest.json

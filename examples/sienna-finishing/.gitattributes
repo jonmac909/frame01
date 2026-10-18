@@ -1,0 +1,2 @@
+# Preserve exact historical bytes so manifest hashes survive checkout on Windows.
+source/*.py.txt -text

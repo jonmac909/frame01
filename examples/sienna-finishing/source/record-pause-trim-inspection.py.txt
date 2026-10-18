@@ -1,0 +1,11 @@
+"""Record completed, actual contact-sheet inspection of this cut, not old QA."""
+from pathlib import Path
+import hashlib,json
+task=Path(__file__).resolve().parents[1];work=task/'work/pause-trim'
+proof=json.loads((work/'render-proof.json').read_text());joins=json.loads((work/'join-sheets.json').read_text());analysis=json.loads((work/'analysis.json').read_text())
+assert joins['sha256']==proof['sha256'] and joins['joins']==237 and len(joins['sheets'])==24
+report={'sha256':proof['sha256'],'frames':proof['frames'],'joinCount':237,'joinSamples':948,'joinSheets':[{'path':f,'sha256':hashlib.sha256(Path(f).read_bytes()).hexdigest()} for f in joins['sheets']],'exampleStartSheets':[{'path':f,'sha256':hashlib.sha256(Path(f).read_bytes()).hexdigest()} for f in analysis['sheets']],'actualInspection':'All24 new-cut boundary sheets and seven native example-start sheets were viewed by the agent in this turn. All237 joins show the planned retained pictures, with no new blank, clipped or corrupt frame observed. Presenter cuts are direct jump cuts during measured quiet gaps. Some existing pans/actions are shortened with those edits; no motion interpolation or new footage was fabricated.','exampleDecision':'Remove idle dialogue leads and tighten badger setup. Other silent examples contain immediate visual action, which remains. Narrated previews retain the complete narrator audio.','limitations':['Static contact sheets cannot certify perceptual audio quality or original provider phoneme lip sync.','Prior709274 QA remains historical; this record names only the new master.']}
+(task/'outputs/Pause trimmed visual inspection.json').write_text(json.dumps(report,indent=2))
+joins['review']='All24 sheets actually viewed in this turn; see Pause trimmed visual inspection.json.'
+(work/'join-sheets.json').write_text(json.dumps(joins,indent=2))
+print(json.dumps({'sha256':proof['sha256'],'joinsActuallyInspected':237,'sheetsActuallyInspected':24,'exampleStartSheets':len(analysis['sheets'])}))

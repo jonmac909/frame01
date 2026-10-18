@@ -8,6 +8,8 @@ New projects use the [deterministic editing contract](DETERMINISTIC_EDITING.md):
 
 Private project data, recordings, generated/reference media, course materials, local models, portable runtimes and credentials are excluded. The example production scripts target the original local project and require those private inputs; cloning this repository does not recreate its paid media or reset its durable generation allowance. The replacement path requires separately recorded, explicit authorization and preserves the prior attempt ledger.
 
+The exact final pause-trimming and verification helpers are preserved as an inspectable [Sienna finishing source archive](examples/sienna-finishing/README.md), including the CPU speech-check dependency. They are project-specific historical source, not additional director actions. Current release evidence is summarized in [RELEASE_VALIDATION.md](RELEASE_VALIDATION.md).
+
 Prerequisites: Node.js 24, installed Chrome, FFmpeg/ffprobe and yt-dlp. Set the documented path environment variables for another machine. Install JavaScript dependencies with `npm ci`, then run `npm run editor` and `npm run director` in separate terminals, or use the Windows launchers. Connect Eve using **Connect Director.ps1**. The optional analysis scripts additionally use Python with NumPy, SciPy, Pillow and OpenCV; CPU ASR requires the separately installed model and its Python runtime. Local generation expects the existing queue services configured in `src/local-generation.ts`; it does not install or start them.
 
 ## Use your existing Chrome

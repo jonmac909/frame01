@@ -1,0 +1,48 @@
+"""Prepare private-review media in an isolated package, preserving the current UI."""
+from pathlib import Path
+import hashlib,json,shutil,subprocess,time
+
+task=Path(__file__).resolve().parents[1]
+parent=task.parent/'i-cant-hear-anything-on-my'
+project=parent/'outputs/video-editor-agent/data/projects/nano-banana-cartoon-workflow-28043a87'
+work=task/'work/pause-trim'
+receipt=work/'render-proof.json'
+deadline=time.monotonic()+900
+while not receipt.exists():
+    if time.monotonic()>deadline:raise TimeoutError('No new render receipt')
+    time.sleep(2)
+proof=json.loads(receipt.read_text());assert proof['frames']==27400
+master=project/'exports/pause-trim/Frame 01 - Nano Banana cartoon workflow - pauses trimmed.mp4'
+assert hashlib.sha256(master.read_bytes()).hexdigest()==proof['sha256']
+plan=json.loads((project/'Pause trimmed plan.json').read_text())
+site=parent/'outputs/frame01-review'
+head=subprocess.check_output(['git','rev-parse','HEAD'],cwd=site,text=True).strip()
+stage=task/'work'/('pause-trim-publish-'+proof['sha256'][:12]);stage.mkdir(exist_ok=True)
+for source in (site/'dist').rglob('*'):
+    if source.is_file():
+        target=stage/source.relative_to(site/'dist');target.parent.mkdir(parents=True,exist_ok=True);shutil.copy2(source,target)
+manifest={'fps':30,'frames':plan['frames'],'duration':plan['frames']/30,'sourceDuration':plan['sections'][-1]['sourceTo'],'previewResolution':'1280x720','masterResolution':'1920x1080','plan':'Pause trimmed plan.json','masterSha256':proof['sha256'],'sections':[]}
+ffmpeg=r'C:\ffmpeg\bin\ffmpeg.exe';ffprobe=r'C:\ffmpeg\bin\ffprobe.exe'
+rows=[]
+for i,section in enumerate(plan['sections']):
+    row={**section,'index':i,'source':f'media/full-source-{i:02}.mp4','ours':f'media/full-remake-{i:02}.mp4'};manifest['sections'].append(row)
+    target=stage/row['ours'];frames=section['to']-section['from'];duration=frames/30
+    cmd=[ffmpeg,'-v','error','-y','-threads','2','-ss',str(section['from']/30),'-i',str(master),'-t',str(duration),'-map','0:v:0','-map','0:a:0','-map_metadata','-1','-map_chapters','-1','-vf','scale=1280:720:flags=lanczos:in_range=full:out_range=full,fps=30,tpad=stop_mode=clone:stop_duration=0.1','-frames:v',str(frames),'-c:v','h264_nvenc','-preset','p5','-tune','hq','-bf','0','-rc','vbr','-cq','23','-b:v','700k','-maxrate','900k','-bufsize','1800k','-color_range','pc','-c:a','aac','-b:a','96k','-ar','48000','-movflags','+faststart',str(target)]
+    subprocess.run(cmd,check=True)
+    for kind in ['ours','source']:
+        file=stage/row[kind]
+        info=json.loads(subprocess.check_output([ffprobe,'-v','error','-show_streams','-of','json',str(file)]))
+        video=next(s for s in info['streams'] if s['codec_type']=='video')
+        expected=frames if kind=='ours' else round((section['sourceTo']-section['sourceFrom'])*30)
+        assert int(video['nb_frames'])==expected and video['width']==1280 and video['height']==720 and video['r_frame_rate']=='30/1'
+        assert any(s['codec_type']=='audio' for s in info['streams']) and file.stat().st_size<25*1024*1024
+        if kind=='ours':
+            Path(str(file)+'.proof.json').write_text(json.dumps({'masterSha256':proof['sha256'],'frames':frames,'bytes':file.stat().st_size,'from':section['from'],'to':section['to'],'rate':1,'pairedPauseTrim':True},indent=2))
+        rows.append({'index':i,'kind':kind,'frames':expected,'bytes':file.stat().st_size,'sha256':hashlib.sha256(file.read_bytes()).hexdigest()})
+    print(json.dumps({'section':i,'frames':frames,'previewBytes':target.stat().st_size}),flush=True)
+assert subprocess.check_output(['git','rev-parse','HEAD'],cwd=site,text=True).strip()==head
+(stage/'full-manifest.json').write_text(json.dumps(manifest,indent=2))
+files=[{'path':str(f.relative_to(stage)).replace('\\','/'),'bytes':f.stat().st_size,'sha256':hashlib.sha256(f.read_bytes()).hexdigest()} for f in sorted(stage.rglob('*')) if f.is_file()]
+result={'masterSha256':proof['sha256'],'frames':plan['frames'],'duration':plan['frames']/30,'stage':str(stage),'preservedSiteSourceCommit':head,'siteSourceUnmodified':True,'previews':rows,'files':files,'publication':'Prepared only; root owns the existing owner-private Site publication. No new Site or audience change.'}
+(task/'outputs/Pause trimmed preview package.json').write_text(json.dumps(result,indent=2))
+print(json.dumps({k:v for k,v in result.items() if k not in ['previews','files']}),flush=True)

@@ -1,0 +1,61 @@
+{
+  "version": 1,
+  "kind": "historical-source-archive",
+  "approvedMasterSha256": "fc9b67193689329fc6aff65eb5d70d91feb27455e49ea520c0e03054d87d8c8e",
+  "files": [
+    {
+      "original": "measure-revision-pauses.py",
+      "archive": "source/measure-revision-pauses.py.txt",
+      "bytes": 1410,
+      "sha256": "189d491504e3a4b265e8e3bc468796650aa07f984a5857f1f5e1ea7b97ec4080"
+    },
+    {
+      "original": "analyze-pause-trim.py",
+      "archive": "source/analyze-pause-trim.py.txt",
+      "bytes": 5939,
+      "sha256": "a017e5bf0df7537d49c7f8d3ebf8849d98c3d0b1f6fae0bcb9f65ba7c1543fb5"
+    },
+    {
+      "original": "build-pause-trim.py",
+      "archive": "source/build-pause-trim.py.txt",
+      "bytes": 9020,
+      "sha256": "02f652e6558ad763d980aa91e35e01ae4fc66b3536198cb108791f6bb7ad6bd8"
+    },
+    {
+      "original": "verify-pause-trim.py",
+      "archive": "source/verify-pause-trim.py.txt",
+      "bytes": 6483,
+      "sha256": "0a1bfe4556f4530cab77e86066ee5aeb981e73347a59521edd00c0dec69e052c"
+    },
+    {
+      "original": "verify-complete-speech.py",
+      "archive": "source/verify-complete-speech.py.txt",
+      "bytes": 7661,
+      "sha256": "62f149a404c395d758196485fe821d44f63712e8479a9a83eba77251fafc9b41"
+    },
+    {
+      "original": "run-pause-trim-qa.py",
+      "archive": "source/run-pause-trim-qa.py.txt",
+      "bytes": 1540,
+      "sha256": "9ecba50f650b2bf3743aa114b93bf13dc4eecb4748587e07fd56f90b657eee00"
+    },
+    {
+      "original": "prepare-pause-trim-preview.py",
+      "archive": "source/prepare-pause-trim-preview.py.txt",
+      "bytes": 4412,
+      "sha256": "79b78f4d4aecb742e735d8d7c75f76b58626427fe96ea14bfc261ae3cc08d02d"
+    },
+    {
+      "original": "record-pause-trim-inspection.py",
+      "archive": "source/record-pause-trim-inspection.py.txt",
+      "bytes": 1991,
+      "sha256": "0701f6b99009ce8b29c4d9b4dc4ec13542c08088b1d276275aaa3ea0c21c180e"
+    },
+    {
+      "original": "finish-pause-trim-delivery.py",
+      "archive": "source/finish-pause-trim-delivery.py.txt",
+      "bytes": 11189,
+      "sha256": "b533f9a40484bb68ffe7d59b2657a42143461f3587306ef32110bfae35f2abd8"
+    }
+  ]
+}

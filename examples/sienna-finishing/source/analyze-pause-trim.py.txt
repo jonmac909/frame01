@@ -1,0 +1,93 @@
+"""Measure conservative silence cuts and inspect example starts; does not edit media."""
+from pathlib import Path
+import hashlib, json, math, subprocess
+import cv2
+import numpy as np
+from PIL import Image, ImageDraw
+
+task = Path(__file__).resolve().parents[1]
+project = task.parent / 'i-cant-hear-anything-on-my/outputs/video-editor-agent/data/projects/nano-banana-cartoon-workflow-28043a87'
+out = task / 'work/pause-trim'
+out.mkdir(parents=True, exist_ok=True)
+plan = json.loads((project / 'Review revision plan.json').read_text())
+ffmpeg = r'C:\ffmpeg\bin\ffmpeg.exe'
+
+def audio(path, rate=16000):
+    return np.frombuffer(subprocess.check_output([ffmpeg, '-v', 'error', '-i', str(path), '-vn', '-ac', '1', '-ar', str(rate), '-f', 'f32le', '-']), dtype=np.float32)
+
+native = audio(project / plan['aroll'])
+bins = native[:len(native)//160*160].reshape(-1,160)
+rms = np.sqrt(np.mean(bins*bins, axis=1))
+quiet = rms < 10**(-40/20)
+changes = np.diff(np.r_[False, quiet, False].astype(int))
+starts, ends = np.flatnonzero(changes == 1), np.flatnonzero(changes == -1)
+protected = [(0,138)]
+protected += [(max(0,x-8),x+14) for x in plan['reviewEffects']['flashes']]
+protected += [(x['from']-3,x['to']+3) for x in plan['reviewEffects']['ctas']]
+protected += [(x,x+10) for x in plan['sfx']]
+protected += [(s['from'],s['from']+6) for s in plan['shots']]
+
+def subtract(interval, blocks):
+    pieces=[interval]
+    for a,b in blocks:
+        pieces=[piece for x,y in pieces for piece in ([(x,y)] if b<=x or a>=y else [(x,min(y,a)),(max(x,b),y)]) if piece[1]>piece[0]]
+    return pieces
+
+cuts=[]
+for a,b in zip(starts,ends):
+    if (b-a)*.01 < .30:
+        continue
+    # At least 90ms of quiet on each side, rounded inward to whole frames.
+    lo,hi=math.ceil((a*.01+.09)*30),math.floor((b*.01-.09)*30)
+    for speech in plan['speech']:
+        x=max(lo,speech['trim']);y=min(hi,speech['trim']+speech['to']-speech['from'])
+        if y-x<3:
+            continue
+        x+=speech['from']-speech['trim'];y+=speech['from']-speech['trim']
+        for left,right in subtract((x,y),protected):
+            if right-left>=3:
+                cuts.append({'from':left,'to':right,'kind':'narration-silence','nativeFrom':speech['trim']+left-speech['from'],'nativeTo':speech['trim']+right-speech['from'],'quietSeconds':[round(a*.01,3),round(b*.01,3)]})
+cuts.sort(key=lambda x:x['from'])
+assert all(a['to']<=b['from'] for a,b in zip(cuts,cuts[1:]))
+
+assets={}
+for shot in plan['shots']:
+    if shot['kind'] not in ['teaser','example']:
+        continue
+    for part in shot.get('parts',[]):
+        key=(part['asset'],part['trim'])
+        assets.setdefault(key,[]).append({'shot':shot['id'],'from':shot['from']+part['from'],'to':shot['from']+part['to'],'narrated':any(s['from']<shot['from']+part['to'] and s['to']>shot['from']+part['from'] for s in plan['speech'])})
+assets.setdefault(('assets/opening-dialogue-first-timed.mp4',0),[]).append({'shot':'opening-first','from':302,'to':601,'narrated':False})
+assets.setdefault(('assets/opening-dialogue-second-clean.mp4',0),[]).append({'shot':'opening-second','from':601,'to':878,'narrated':False})
+panels=[];rows=[]
+for (asset,trim),uses in assets.items():
+    path=project/asset
+    probe=json.loads(subprocess.check_output([r'C:\ffmpeg\bin\ffprobe.exe','-v','error','-show_streams','-of','json',str(path)]))
+    has_audio=any(s['codec_type']=='audio' for s in probe['streams'])
+    onset=None
+    if has_audio:
+        wave=audio(path);start=round(trim/30*16000);portion=wave[start:start+4*16000]
+        ar=np.sqrt(np.mean(portion[:len(portion)//160*160].reshape(-1,160)**2,axis=1))
+        # Acoustic activity only, not guaranteed speech (some examples contain music).
+        active=np.flatnonzero(ar>10**(-35/20));onset=round(float(active[0])*.01,3) if len(active) else None
+    cap=cv2.VideoCapture(str(path));fps=cap.get(cv2.CAP_PROP_FPS);duration=cap.get(cv2.CAP_PROP_FRAME_COUNT)/fps
+    panel=Image.new('RGB',(1500,220),'#111820');draw=ImageDraw.Draw(panel)
+    draw.text((8,5),f'{path.name} | trim {trim}/30s | audio {has_audio}, activity {onset} | '+','.join(u['shot'] for u in uses),fill='white')
+    frames=[]
+    for i,delta in enumerate([0,.2,.4,.7,1,1.4]):
+        frame=round((trim/30+delta)*fps);cap.set(cv2.CAP_PROP_POS_FRAMES,frame);ok,pix=cap.read();assert ok,(asset,frame)
+        frames.append(cv2.resize(cv2.cvtColor(pix,cv2.COLOR_BGR2GRAY),(240,135)).astype(float))
+        panel.paste(Image.fromarray(cv2.cvtColor(cv2.resize(pix,(240,135)),cv2.COLOR_BGR2RGB)),(i*250+5,40));draw.text((i*250+8,182),f'+{delta:.1f}s',fill='white')
+    cap.release()
+    motion=[round(float(np.mean(abs(f-frames[0]))),3) for f in frames]
+    draw.text((8,202),f'Whole-frame change from first sample: {motion}',fill='#c9d8e8')
+    panels.append(panel);rows.append({'asset':asset,'trim':trim,'duration':duration,'hasAudio':has_audio,'firstAcousticActivitySeconds':onset,'motionMad':motion,'uses':uses})
+    print(json.dumps({'example':path.name,'trim':trim,'audioOnset':onset,'motionMad':motion}),flush=True)
+sheets=[]
+for i in range(0,len(panels),5):
+    sheet=Image.new('RGB',(1500,220*len(panels[i:i+5])),'#111820')
+    for j,panel in enumerate(panels[i:i+5]):sheet.paste(panel,(0,j*220))
+    dest=out/f'example-starts-{i//5:02}.jpg';sheet.save(dest,quality=94);sheets.append(str(dest))
+report={'sourceMasterSha256':'709274b77302ffcdddd3619e49079a841fbd37c28e3f52a255f81ea69750dabb','fps':30,'narrationCuts':cuts,'narrationRemovedFrames':sum(c['to']-c['from'] for c in cuts),'narrationCutCount':len(cuts),'examples':rows,'sheets':sheets,'limitations':'RMS/acoustic activity are candidates. Inspect picture setup and sound before example cuts; narrated examples cannot lose narrator words.'}
+(out/'analysis.json').write_text(json.dumps(report,indent=2))
+print(json.dumps({'narrationCutCount':len(cuts),'narrationSecondsRemoved':report['narrationRemovedFrames']/30,'exampleStartSheets':sheets}),flush=True)

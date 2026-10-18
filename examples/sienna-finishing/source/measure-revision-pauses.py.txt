@@ -1,0 +1,11 @@
+from pathlib import Path
+import subprocess,json
+import numpy as np
+t=Path(__file__).resolve().parents[1];p=t.parent/'i-cant-hear-anything-on-my/outputs/video-editor-agent/data/projects/nano-banana-cartoon-workflow-28043a87';out=t/'work/revision-01';out.mkdir(exist_ok=True)
+raw=p/'assets/sienna-shop-drop-1x-2388109a9b1f485794191d8042820f0d.mp4';audio=np.frombuffer(subprocess.check_output([r'C:\ffmpeg\bin\ffmpeg.exe','-v','error','-i',str(raw),'-vn','-ac','1','-ar','16000','-f','f32le','-']),dtype=np.float32)
+bins=audio[:len(audio)//160*160].reshape(-1,160);rms=np.sqrt(np.mean(bins*bins,axis=1));rows=[]
+for db in[-45,-40,-36,-32]:
+    quiet=rms<10**(db/20);starts=np.flatnonzero(np.diff(np.r_[False,quiet,False].astype(int))==1);ends=np.flatnonzero(np.diff(np.r_[False,quiet,False].astype(int))==-1)
+    groups=[{'start':a*.01,'end':b*.01,'seconds':(b-a)*.01}for a,b in zip(starts,ends)if b-a>=20]
+    rows.append({'thresholdDbfs':db,'groups':len(groups),'quietSeconds':sum(g['seconds']for g in groups),'removableKeeping200ms':sum(max(0,g['seconds']-.2)for g in groups),'intervals':groups})
+(out/'native-pause-measurement.json').write_text(json.dumps({'nativeSeconds':len(audio)/16000,'measurements':rows,'limitations':'RMS quiet regions are candidates, not safe word-cut boundaries. No media changed.'},indent=2));print(json.dumps([{k:v for k,v in r.items()if k!='intervals'}for r in rows]),flush=True)

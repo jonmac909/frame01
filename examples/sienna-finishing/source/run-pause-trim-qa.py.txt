@@ -1,0 +1,27 @@
+"""Wait for this edit's receipt, then run independent output checks once."""
+from pathlib import Path
+import concurrent.futures,json,subprocess,sys,time
+
+task=Path(__file__).resolve().parents[1]
+work=task/'work/pause-trim'
+receipt=work/'render-proof.json'
+deadline=time.monotonic()+900
+while not receipt.exists():
+    if time.monotonic()>deadline:raise TimeoutError('Pause-trim renderer did not finish in15minutes')
+    time.sleep(2)
+proof=json.loads(receipt.read_text());assert proof['frames']==27400
+
+commands=[
+    ('paired-frame-audio',[sys.executable,str(task/'work/verify-pause-trim.py')]),
+    ('whole-speech',[r'C:\Users\jonst\Documents\Codex\Local Models\Qwen3-ASR-1.7B-hf\venv\Scripts\python.exe',str(task/'work/verify-complete-speech.py'),'--plan','Pause trimmed plan.json','--export','pause-trim','--name','Frame 01 - Nano Banana cartoon workflow - pauses trimmed.mp4','--label','Pause trimmed','--join-speech','--threads','4']),
+]
+def run(job):
+    label,cmd=job;began=time.monotonic()
+    print(json.dumps({'started':label}),flush=True)
+    with (work/(label+'.log')).open('w') as log:
+        result=subprocess.run(cmd,stdout=log,stderr=log)
+    row={'check':label,'exitCode':result.returncode,'seconds':time.monotonic()-began}
+    print(json.dumps(row),flush=True);return row
+with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:rows=list(pool.map(run,commands))
+(work/'qa-processes.json').write_text(json.dumps({'sha256':proof['sha256'],'checks':rows},indent=2))
+assert all(row['exitCode']==0 for row in rows)
