@@ -25,6 +25,8 @@ export const timelineSchema = z.object({
   fps:z.literal(30).default(30), width:z.literal(1920).default(1920), height:z.literal(1080).default(1080),
   title:z.string(), accent:z.string().regex(/^#[0-9a-fA-F]{6}$/).default('#d4fa72'),
   narration:z.string().optional(),
+  runtime:z.object({mode:z.enum(['source-window','natural']),minFrames:z.number().int().positive(),maxFrames:z.number().int().positive(),reason:z.string().min(10).max(500)}).strict().optional(),
+  speech:z.array(z.object({from:z.number().int().nonnegative(),to:z.number().int().positive(),trim:z.number().int().nonnegative()}).strict()).optional(),
   font:z.string().optional(),
   audio:z.array(z.object({id:z.string(),asset:z.string(),start:z.number().min(0),duration:z.number().positive(),trim:z.number().min(0).default(0),volume:z.number().min(0).max(1).default(.22),fade:z.number().min(0).max(1).default(.04)})).default([]),
   overlays:z.array(z.object({id:z.string(),asset:z.string(),start:z.number().min(0),duration:z.number().positive(),trim:z.number().min(0).default(0),blend:z.enum(['normal','screen','multiply']).default('screen'),opacity:z.number().min(0).max(1).default(1),layout:z.enum(['full','circle']).default('full')})).default([]),
@@ -36,7 +38,7 @@ export type Timeline=z.infer<typeof timelineSchema>;
 export type Operation={attemptedAt:string; state:'pending'|'confirmed'|'uncertain'; url?:string; error?:string};
 export type Project={
   id:string; title:string; referenceUrl:string; avatar:string; voice:string; model:'Avatar III'|'Avatar IV'; tone?:string; voiceSpeed?:number; createdAt:string;
-  script:string; notes:string; timeline?:Timeline; reference?:Record<string,unknown>;
+  script:string; notes:string; timeline?:Timeline; reference?:Record<string,unknown>;contractVersion?:1;
   heygen:{draft?:Operation; video?:Operation; verified?:{avatar:string;voice:string;model:string;tone?:string;voiceSpeed?:number;at:string;scriptHash:string}; asset?:string; acceptedTestVoiceSpeed?:number};
   events:{at:string;type:string;message:string}[]; assets:{file:string;kind:string;duration?:number}[];
   render?:{file:string;at:string;duration:number}; sessionId?:string;
@@ -64,7 +66,7 @@ export function event(p:Project,type:string,message:string){p.events.push({at:ne
 export async function createProject(input:{title:string;referenceUrl:string;avatar:string;voice:string;model?:'Avatar III'|'Avatar IV';tone?:string}){
   const parsed=z.object({title:z.string().min(1).max(180),referenceUrl:z.string().url(),avatar:z.string().min(1),voice:z.string().min(1),model:z.enum(['Avatar III','Avatar IV']).default('Avatar III'),tone:z.string().min(1).default('Warm')}).parse(input);
   const id=(parsed.title.toLowerCase().replace(/[^a-z0-9]+/g,'-').slice(0,45)||'video')+'-'+crypto.randomBytes(4).toString('hex');
-  const p:Project={...parsed,voiceSpeed:1,id,createdAt:new Date().toISOString(),script:'',notes:'',heygen:{},events:[],assets:[]};
+  const p:Project={...parsed,voiceSpeed:1,contractVersion:1,id,createdAt:new Date().toISOString(),script:'',notes:'',heygen:{},events:[],assets:[]};
   event(p,'created','Project created. HeyGen allowance: one draft, one submitted video.');
   await atomicJson(path.join(projectDir(id),'project.json'),p);return p;
 }
@@ -98,7 +100,8 @@ export async function validateTimeline(id:string,input:unknown){
   const t=timelineSchema.parse(input);const end=Math.max(...t.clips.map(c=>c.start+c.duration));
   const p=await readProject(id);
   checkReferenceStyle(t,p.reference);
-  if(p.reference?.duration)checkRuntime(end,Number(p.reference.duration),t.fps);
+  if(t.runtime){const frames=Math.round(end*t.fps),r=t.runtime;if(r.minFrames>r.maxFrames||frames<r.minFrames||frames>r.maxFrames)throw new Error('Timeline runtime conflicts with the recorded pacing decision.');if(r.mode==='source-window'&&p.reference?.duration){const source=Math.round(Number(p.reference.duration)*30);if(r.minFrames<source-900||r.maxFrames>source+900)throw new Error('Source-window runtime exceeds the permitted 30 seconds.');}}
+  else if(p.reference?.duration)checkRuntime(end,Number(p.reference.duration),t.fps);
   const ids=[...t.clips,...t.audio,...t.overlays].map(c=>c.id);
   if(new Set(ids).size!==ids.length)throw new Error('Each timeline clip, audio layer, and overlay needs a unique ID.');
   const ordered=[...t.clips].sort((a,b)=>a.start-b.start);let covered=0;
@@ -116,7 +119,7 @@ export async function validateTimeline(id:string,input:unknown){
   }
   for(const c of t.captions)if(c.end<=c.start||c.end>end+.04)throw new Error('Caption times must be ordered and inside the timeline.');
   for(const g of t.graphics)if(g.start+g.duration>end+.04)throw new Error('Graphic runs past the timeline.');
-  if(t.narration){const info=await probe(safePath(projectDir(id),t.narration));if(!info.audio||info.duration<end-.1)throw new Error('Narration must contain audio covering the complete timeline.');}
+  if(t.narration){const info=await probe(safePath(projectDir(id),t.narration));if(!info.audio||(!t.speech&&info.duration<end-.1)||t.speech?.some(s=>s.trim+s.to-s.from>Math.round(info.duration*30)+1))throw new Error('Narration must contain audio covering its complete mapped segments.');}
   for(const a of t.audio){const info=await probe(safePath(projectDir(id),a.asset));if(!info.audio||a.trim+a.duration>info.duration+.1||a.start+a.duration>end+.04)throw new Error(`Sound effect ${a.id} exceeds its source or timeline, or has no audio.`);}
   for(const o of t.overlays){const info=await probe(safePath(projectDir(id),o.asset));if(!info.video||o.trim+o.duration>info.duration+.1||o.start+o.duration>end+.04)throw new Error(`Overlay ${o.id} exceeds its source or timeline.`);}
   if(t.font){if(!/\.(ttf|otf|woff2?)$/i.test(t.font))throw new Error('Choose an imported font.');await fs.access(safePath(projectDir(id),t.font));}

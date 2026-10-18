@@ -18,6 +18,7 @@
     "test": "tsx --test tests/*.test.ts"
   },
   "dependencies": {
+    "@babel/parser": "7.24.1",
     "@remotion/bundler": "4.0.536",
     "@remotion/renderer": "4.0.536",
     "@vercel/connect": "2.5.2",
@@ -43,5 +44,7 @@
   "engines": {
     "node": "24.x"
   },
-  "overrides": {"undici":"7.29.1"}
+  "overrides": {
+    "undici": "7.29.1"
+  }
 }

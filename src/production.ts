@@ -3,6 +3,8 @@ import path from 'node:path';
 import {atomicJson,readProject,mutate,event,projectDir,validateTimeline} from './core.js';
 import {checkSavedScriptPlan,checkReferenceScan,fingerprint,sourceBeats,sourceSection,validateScriptPlan,words,type ScriptPlan} from './preflight.js';
 import {compactProject} from './director-contract.js';
+import {feedback} from './feedback.js';
+import {checkProductionContract,readProductionContract} from './production-contract.js';
 
 export async function readReference(id:string,offset=0,limit=20){
   const p=await readProject(id),r=p.reference;
@@ -40,8 +42,12 @@ export async function preflight(id:string){
   await check('A-roll',()=>{if(!p.assets.some(a=>a.kind==='aroll'))throw new Error('Download and import the sole existing HeyGen video.');});
   await check('voice speed',()=>{if(p.heygen.video&&p.heygen.verified?.voiceSpeed!==(p.voiceSpeed??1)&&!(p.heygen.acceptedTestVoiceSpeed!==undefined&&p.heygen.acceptedTestVoiceSpeed===p.heygen.verified?.voiceSpeed))throw new Error(`Submitted voice speed is ${p.heygen.verified?.voiceSpeed??'unverified'}×; required ${p.voiceSpeed??1}×. This A-roll needs correction. Do not resubmit automatically.`);});
   if(p.heygen.acceptedTestVoiceSpeed)checks.find(c=>c.name==='voice speed')!.detail=`User authorized this test with the existing ${p.heygen.acceptedTestVoiceSpeed}× A-roll. Future videos require 1.0×.`;
-  await check('timeline',()=>{if(!p.timeline)throw new Error('Assemble and validate the edit timeline after importing the media.');return validateTimeline(id,p.timeline)});
+  let fullContract=false;try{fullContract=(await readProductionContract(id)).planFile!=='timeline.json'}catch(e){if((e as NodeJS.ErrnoException).code!=='ENOENT')throw e}
+  await check('timeline',()=>{if(fullContract)return {kind:'section plan',validatedBy:'edit contract'};if(!p.timeline)throw new Error('Assemble and validate the edit timeline after importing the media.');return validateTimeline(id,p.timeline)});
+  if(p.contractVersion===1)await check('edit contract',()=>checkProductionContract(id));
   const nextAction=!checks[0].ok?'reference.read / script.plan.save':consumed.video?(!p.heygen.video?.url?'heygen.link existing video (never resubmit)':!p.assets.some(a=>a.kind==='aroll')?'heygen.download':!checks.find(c=>c.name==='reference visuals')?.ok?'reference.analyze':!checks.find(c=>c.name==='timeline')?.ok?'timeline.save':'render'):!p.heygen.draft?.url?'heygen.link existing draft':!p.heygen.verified?'heygen.verify':'heygen.submit_video';
   const speedIssue=checks.find(c=>c.name==='voice speed'&&!c.ok)?.detail;
-  return {project:compactProject(p),consumed,checks,nextAction:speedIssue?'Resolve the submitted voice speed error without another submission':nextAction,nextStep:speedIssue||(consumed.video&&!p.heygen.video?.url?'Wait for the submitted HeyGen video, then link that result. Do not submit again.':nextAction),measurement:'Word budgets do not prove speech or graphics alignment. Measure the rendered A-roll before final editing.'};
+  const reviewFeedback=await feedback.context(id);
+  const contractBlocked=nextAction==='render'&&checks.some(c=>c.name==='edit contract'&&!c.ok),next=contractBlocked?'contract.save / contract.check':nextAction==='render'&&fullContract?'render.sections / render.assemble':nextAction;
+  return {project:compactProject(p),consumed,checks,feedback:{pending:reviewFeedback.pending.length,read:'feedback.context',learnedChecks:reviewFeedback.learnedChecks,projectChecks:reviewFeedback.projectChecks},nextAction:speedIssue?'Resolve the submitted voice speed error without another submission':next,nextStep:speedIssue||(consumed.video&&!p.heygen.video?.url?'Wait for the submitted HeyGen video, then link that result. Do not submit again.':next),measurement:'Word budgets do not prove speech or graphics alignment. Measure the rendered A-roll before final editing. Pending feedback requires actual artifact verification before claiming completion.'};
 }

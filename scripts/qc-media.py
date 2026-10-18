@@ -1,16 +1,19 @@
 from pathlib import Path
-import cv2,json,sys,math,subprocess
+import cv2,json,sys,math,subprocess,argparse
 from PIL import Image,ImageDraw,ImageOps
 root=Path(__file__).resolve().parents[1];p=root/'data/projects/nano-banana-cartoon-workflow-28043a87'
-mode=sys.argv[1]if len(sys.argv)>1 else'assets'
-if mode=='assets':
+parser=argparse.ArgumentParser();parser.add_argument('mode',nargs='?',default='assets');parser.add_argument('--export');args=parser.parse_args();mode=args.mode
+if args.export:
+    assert Path(args.export).name==args.export
+    files=sorted((p/'exports'/args.export).glob('section-??.mp4'))
+elif mode=='assets':
     requests=json.loads((p/'Additional demo requests.json').read_text())
     files=[p/f"assets/local-{r['assetKey']}.mp4"for r in requests if r['kind']=='video']
 elif mode=='walkthrough':files=[p/r['file']for r in json.loads((p/'Walkthrough insert manifest.json').read_text())]
 elif mode=='active-walkthrough':files=[p/r['file']for r in json.loads((p/'Active walkthrough repair manifest.json').read_text())]
 elif mode=='complete-narration':files=sorted((p/'exports/complete-narration').glob('section-??.mp4'))
 else:files=sorted((p/'exports/source-runtime').glob('section-??.mp4'))
-export='complete-narration'if mode=='complete-narration'else'source-runtime'
+export=args.export or('complete-narration'if mode=='complete-narration'else'source-runtime')
 out=p/f'exports/{export}/qa-{mode}';out.mkdir(parents=True,exist_ok=True)
 cv2.setNumThreads(2)
 for file in files:

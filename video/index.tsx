@@ -1,7 +1,9 @@
 import React from 'react';
 import {AbsoluteFill,Audio,Composition,Easing,Img,OffthreadVideo,Sequence,interpolate,registerRoot,useCurrentFrame,useVideoConfig} from 'remotion';
 import type {Timeline} from '../src/core';
-export type Props={timeline:Timeline;baseUrl:string;fontDataUrl?:string};
+import {EffectLayer} from './effects';
+import type {TimedEffect} from './effect-contract';
+export type Props={timeline:Timeline;baseUrl:string;fontDataUrl?:string;effects?:TimedEffect[]};
 const url=(base:string,file:string)=>base+'/'+file.split(/[\\/]/).map(encodeURIComponent).join('/');
 function Sound({asset,start,duration,trim,volume,fade,baseUrl}:Timeline['audio'][number]&{baseUrl:string}){const frame=useCurrentFrame();const frames=duration*30;const ramp=Math.max(1,fade*30);const gain=Math.max(0,Math.min(1,frame/ramp,(frames-frame)/ramp));return <Audio src={url(baseUrl,asset)} startFrom={Math.round(trim*30)} volume={volume*gain}/>}
 function Graphic({text,kind,accent,hasCaption}:{text:string;kind:string;accent:string;hasCaption:boolean}){
@@ -23,7 +25,7 @@ function Visual({clip,baseUrl}:{clip:Timeline['clips'][number];baseUrl:string}){
   const camera=clip.camera?`translate(${pose('x')*width}px,${pose('y')*height}px) scale(${pose('scale')})`:'none';
   return <AbsoluteFill style={{overflow:'hidden',background:card?'radial-gradient(ellipse at center,#10bce8 0%,#08718e 53%,#083e52 100%)':'#10141d'}}><AbsoluteFill style={{alignItems:'center',justifyContent:'center',transform:camera,transformOrigin:'0 0'}}><div style={{width:card?'94%':'100%',height:card?'92%':'100%',borderRadius:card?18:0,border:card?'3px solid #72dbf5':undefined,overflow:'hidden',transform,boxShadow:card?'0 0 18px #18c9f040':undefined}}>{media}</div></AbsoluteFill></AbsoluteFill>;
 }
-export function Edit({timeline,baseUrl,fontDataUrl}:Props){
+export function Edit({timeline,baseUrl,fontDataUrl,effects=[]}:Props){
   const frame=useCurrentFrame();const {fps}=useVideoConfig();const seconds=frame/fps;
   const caption=timeline.captions.find(c=>seconds>=c.start&&seconds<c.end);
   return <AbsoluteFill style={{backgroundColor:'#10141d',fontFamily:timeline.font?'PackFont, Arial, sans-serif':'Arial, sans-serif'}}>
@@ -33,6 +35,7 @@ export function Edit({timeline,baseUrl,fontDataUrl}:Props){
     {timeline.clips.map(c=><Sequence key={c.id} from={Math.round(c.start*fps)} durationInFrames={Math.round(c.duration*fps)}><Visual clip={{...c,muted:Boolean(timeline.narration)||c.muted}} baseUrl={baseUrl}/></Sequence>)}
     {(timeline.overlays||[]).map(o=><Sequence key={o.id} from={Math.round(o.start*fps)} durationInFrames={Math.round(o.duration*fps)} style={{mixBlendMode:o.blend,opacity:o.opacity}}><div style={o.layout==='circle'?{position:'absolute',right:35,top:25,width:330,height:330,borderRadius:'50%',overflow:'hidden',border:'5px solid #16c9fa',boxShadow:'0 0 20px #16c9fa88'}:{width:'100%',height:'100%'}}><OffthreadVideo src={url(baseUrl,o.asset)} startFrom={Math.round(o.trim*fps)} muted style={{width:'100%',height:'100%',objectFit:'cover',objectPosition:'50% 38%'}}/></div></Sequence>)}
     {timeline.graphics.map((g,i)=><Sequence key={i} from={Math.round(g.start*fps)} durationInFrames={Math.round(g.duration*fps)}><Graphic {...g} accent={timeline.accent} hasCaption={timeline.captions.some(c=>c.end>g.start&&c.start<g.start+g.duration)}/></Sequence>)}
+    <EffectLayer effects={effects} baseUrl={baseUrl}/>
     {caption&&<AbsoluteFill style={{justifyContent:'flex-end',alignItems:'center',padding:'0 100px 65px'}}><div style={{background:'#0b101be8',color:'#fff',borderRadius:16,padding:'14px 25px',fontSize:48,fontWeight:750,textAlign:'center',maxWidth:1500,borderBottom:`5px solid ${timeline.accent}`,textShadow:'0 2px 6px #000'}}>{caption.text}</div></AbsoluteFill>}
   </AbsoluteFill>;
 }

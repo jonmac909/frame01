@@ -1,5 +1,8 @@
 import {z} from 'zod';
 import {idSchema,timelineSchema,type Project} from './core.js';
+import {feedbackImportSchema,feedbackVerifySchema,feedbackChecks} from './feedback.js';
+import {editContractSchema} from './edit-contract.js';
+import {sectionPlanSchema} from './section-plan.js';
 
 const empty=z.object({}).strict();
 const kind=z.enum(['heygen','walkthrough']);
@@ -7,6 +10,16 @@ const file=z.string().min(1);
 const op=<N extends string,S extends z.ZodType>(name:N,args:S)=>z.object({name:z.literal(name),args});
 export const operationSchema=z.discriminatedUnion('name',[
   op('project.read',empty),op('project.summary',empty),op('preflight.check',empty),
+  op('effects.catalog',empty),op('contract.check',empty),op('contract.save',z.object({contract:editContractSchema}).strict()),
+  op('contract.events',z.object({offset:z.number().int().nonnegative().default(0),limit:z.number().int().min(1).max(30).default(20)}).strict()),
+  op('jobs.read',z.object({jobId:z.string().uuid()}).strict()),
+  op('plan.save',z.object({plan:sectionPlanSchema}).strict()),
+  op('plan.read',z.object({file:z.string().regex(/^[^/\\]+\.json$/),offset:z.number().int().nonnegative().default(0),limit:z.number().int().min(1).max(30).default(20)}).strict()),
+  op('render.sections',z.object({planFile:z.string().regex(/^[^/\\]+\.json$/),exportName:z.string().regex(/^[a-z0-9-]+$/),sections:z.array(z.number().int().nonnegative()).min(1).max(100)}).strict()),
+  op('render.assemble',z.object({exportName:z.string().regex(/^[a-z0-9-]+$/),name:z.string().regex(/^[-a-zA-Z0-9 _]+\.mp4$/)}).strict()),
+  op('feedback.context',z.object({offset:z.number().int().nonnegative().default(0),limit:z.number().int().min(1).max(30).default(20)}).strict()),op('feedback.import',feedbackImportSchema),op('feedback.verify',feedbackVerifySchema),
+  op('feedback.classify',z.object({commentId:z.string().regex(/^[a-f0-9]{64}$/),topics:z.array(z.enum(Object.keys(feedbackChecks) as [keyof typeof feedbackChecks,...(keyof typeof feedbackChecks)[]])).max(8)}).strict()),
+  op('feedback.reopen',z.object({commentId:z.string().regex(/^[a-f0-9]{64}$/),reason:z.string().min(5).max(1000)}).strict()),
   op('course.index',empty),op('library.index',empty),op('reference.ingest',empty),
   op('render',empty),op('heygen.verify',empty),op('record.stop',empty),op('record.windows',empty),op('record.status',empty),
   op('record.prepare',z.object({url:z.string().url()}).strict()),
@@ -37,7 +50,7 @@ export const operationSchema=z.discriminatedUnion('name',[
   op('heygen.download',z.object({ref:file}).strict()),
   op('heygen.link',z.object({kind:z.enum(['draft','video']),url:z.string().url()}).strict()),
 ]);
-export const directorInputSchema=z.object({projectId:idSchema,operation:operationSchema});
+export const directorInputSchema=z.object({projectId:idSchema,operation:operationSchema,requestKey:z.string().min(1).max(200).optional()});
 
 export function compactProject(p:Project){
   return {id:p.id,title:p.title,referenceUrl:p.referenceUrl,avatar:p.avatar,voice:p.voice,model:p.model,tone:p.tone,voiceSpeed:p.voiceSpeed??1,

@@ -25,7 +25,7 @@ for i,s in enumerate(plan['sections']):
 # than the file start: Impact1 peak .7738s, Whoosh1 peak .5678s at48kHz.
 impact='assets/pack-b0ad7b4651ba12f9-Impact_-_1.mp3'
 whoosh=plan['whoosh'];accents=[]
-for source,seconds,key,gain,peak,reason in [
+for source,seconds,key,gain,peak,reason in ([] if plan.get('reviewEffects') else [
     (190.2333,6.5,impact,.035,.7738,'badger reaction insert'),
     (304.5,14.0,whoosh,.035,.5678,'watercolor journey to reunion cut'),
     (377.5,4.0,impact,.04,.7738,'magic surprise insert'),
@@ -33,7 +33,7 @@ for source,seconds,key,gain,peak,reason in [
     (623.5,4.0,whoosh,.04,.5678,'anime leap insert'),
     (689.5,4.0,impact,.035,.7738,'clay mishap insert'),
     (689.5,14.0,whoosh,.035,.5678,'clay rescue insert'),
-    (689.5,22.0,impact,.03,.7738,'clay payoff insert')]:
+    (689.5,22.0,impact,.03,.7738,'clay payoff insert')]):
     shot=next(s for s in plan['shots']if abs(s['sourceStart']/30-source)<.05)
     target=shot['from']/30+seconds;start=round((target-peak)*rate);pcm=decode(p/key)*gain
     end=min(len(audio),start+len(pcm));audio[start:end]+=pcm[:end-start]
@@ -70,4 +70,5 @@ levels=subprocess.run([ffmpeg,'-hide_banner','-i',str(target),'-vn','-af','loudn
 level=json.JSONDecoder().raw_decode(levels[levels.rfind('{'):])[0];assert float(level['input_tp'])<=-1.0
 report={'master':str(target),'frames':plan['frames'],'duration':float(info['format']['duration']),'sha256':hashlib.sha256(target.read_bytes()).hexdigest(),'sectionInputs':inputs,'audioSeams':seams,'audioTimeline':audio_timeline,'accents':accents,'loudness':level,'chapterCount':len(info['chapters']),'speechRate':1,'removedCues':40,'humanApproval':False,'limitations':['Source scenes are recreated with original characters and local Qwen/LTX outputs.','Motion-only examples have no generated ambience; pack accents and existing dialogue are used.','Technical signal and speech-content checks do not establish human listening or exact lip synchronization.']}
 if args.plan=='Complete narration repair plan.json':report.update(removedCues=0,speechRate='See Complete narration pace map.json; pitch and formants preserved.',allOriginalNarrationRetained=True,paceMap='Complete narration pace map.json',preparedAroll=plan['aroll'],limitations=['Source scenes are recreated with original characters and local Qwen/LTX outputs.','Six nonverbal demonstration beds derive from existing generated audio; dialogue and pack accents are preserved.','Technical signal and speech-content checks do not establish human listening or exact lip synchronization.'])
+if plan.get('reviewEffects'):report.update(removedCues=0,speechRate=1,allOriginalNarrationRetained=True,paceMap='Review revision pace map.json',preparedAroll=plan['aroll'],limitations=plan['limitations'],exampleAudio='Native matching file, trim and duration; no loop beds or added example accents.')
 Path(str(target)+'.proof.json').write_text(json.dumps(report,indent=2));print(json.dumps({'master':str(target),'frames':plan['frames'],'duration':report['duration'],'truePeak':level['input_tp'],'sha256':report['sha256']}),flush=True)

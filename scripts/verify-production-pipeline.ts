@@ -1,0 +1,37 @@
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import {spawn,type ChildProcess} from 'node:child_process';
+import net from 'node:net';
+import assert from 'node:assert/strict';
+import {setTimeout as delay} from 'node:timers/promises';
+await fs.mkdir('test-results',{recursive:true});const data=await fs.mkdtemp(path.resolve('test-results/pipeline-'));process.env.EDITOR_DATA_DIR=data;
+const {ROOT,run,FFMPEG,atomicJson,probe,hash}=await import('../src/core.js'),{hashFile}=await import('../src/render-cache.js');
+const listener=net.createServer();await new Promise<void>(resolve=>listener.listen(0,'127.0.0.1',resolve));const port=(listener.address() as net.AddressInfo).port;await new Promise<void>(resolve=>listener.close(()=>resolve()));
+let server:ChildProcess|undefined,logs='';
+async function start(){logs='';server=spawn(process.execPath,['--import','tsx','src/server.ts'],{cwd:ROOT,env:{...process.env,EDITOR_DATA_DIR:data,PORT:String(port)},windowsHide:true,stdio:'pipe'});server.on('error',e=>logs+=String(e));server.stdout!.on('data',b=>logs+=String(b));server.stderr!.on('data',b=>logs+=String(b));for(let i=0;i<600;i++){try{const r=await fetch(`http://127.0.0.1:${port}/api/config`,{signal:AbortSignal.timeout(1000)});if(r.ok)return (await r.json() as {token:string}).token}catch{}if(server.exitCode!==null)throw new Error(logs);await delay(100)}throw new Error('Isolated editor did not start: '+logs)}
+async function stop(){if(server&&server.exitCode===null){const exited=new Promise<void>(resolve=>server!.once('exit',()=>resolve()));server.kill();await exited;}}
+try{
+  let token=await start();const api=async(route:string,body?:unknown,key?:string)=>{const response=await fetch(`http://127.0.0.1:${port}/api/${route}`,{method:body?'POST':'GET',headers:{'Content-Type':'application/json','X-Editor-Token':token,...key?{'Idempotency-Key':key}:{}},body:body?JSON.stringify(body):undefined});const value=await response.json();if(!response.ok)throw new Error(JSON.stringify(value));return value as any};
+  const p=await api('projects',{title:'Synthetic pipeline verification',referenceUrl:'https://youtu.be/fixture',avatar:'Fixture',voice:'Fixture'}),id=p.id,dir=path.join(data,'projects',id);
+  const operate=(name:string,args:unknown,key?:string)=>api(`projects/${id}/action`,{name,args},key);
+  const finish=async(job:any)=>{for(let i=0;i<600;i++){const current=await operate('jobs.read',{jobId:job.id});if(current.state==='complete')return current.result;if(current.state==='failed')throw new Error(current.error);await delay(500)}throw new Error('Test job exceeded five minutes')};
+  assert.equal((await operate('effects.catalog',{})).fps,30);
+  await operate('project.save',{notes:'Persistence check'},'same-request');await stop();token=await start();await operate('project.save',{notes:'Persistence check'},'same-request');assert.equal((await api('jobs')).length,1);
+  await run(FFMPEG,['-v','error','-y','-f','lavfi','-i','sine=frequency=440:sample_rate=48000:duration=1','-ac','2','-c:a','pcm_s16le',path.join(dir,'voice.wav')]);
+  await run(FFMPEG,['-v','error','-y','-f','lavfi','-i','color=c=blue:s=1920x1080:r=30:d=1','-i',path.join(dir,'voice.wav'),'-c:v','libx264','-preset','ultrafast','-c:a','aac','-t','1',path.join(dir,'demo.mp4')]);await fs.copyFile(path.join(dir,'demo.mp4'),path.join(dir,'source.mp4'));
+  p.script='Testing';p.notes='Synthetic media only, not a creative acceptance fixture.';p.reference={duration:1,analysis:{sampleFps:4,frameCount:4,mediaDuration:1,source:'source.mp4'},frames:Array.from({length:4},(_,i)=>({seconds:i/4,file:'synthetic-reference.jpg'}))};await atomicJson(path.join(dir,'project.json'),p);
+  const plan={fps:30,frames:60,baseUrl:`http://127.0.0.1:${port}/media/${id}`,aroll:'voice.wav',whoosh:'voice.wav',shots:[{id:'host',kind:'text',from:0,to:30,sourceStart:0,sourceEnd:20,words:[{text:'Testing',from:10}]},{id:'demo',kind:'example',from:30,to:60,sourceStart:20,sourceEnd:30,parts:[{from:0,to:30,asset:'demo.mp4',trim:0}]}],speech:[{from:0,to:30,trim:0}],sound:[{from:30,to:60,trim:0,asset:'demo.mp4',gain:.8}],sfx:[],sections:[{name:'host',from:0,to:30,sourceFrom:0,sourceTo:20},{name:'demo',from:30,to:60,sourceFrom:20,sourceTo:30}],limitations:[]};await atomicJson(path.join(dir,'plan.json'),plan);
+  const asset=async(file:string)=>({file,frames:30,audio:true,sha256:await hashFile(path.join(dir,file))});
+  const {baseUrl,...authored}=plan;const saved=await operate('plan.save',{plan:authored},'plan-original'),planFile=saved.planFile;
+  const contract={version:1,fps:30,frames:60,planFile,planSha256:saved.planSha256,runtime:{minFrames:60,maxFrames:60,reason:'Synthetic natural narration and demonstration timing.'},source:{...await asset('source.mp4'),scanFps:4,reviewedWindows:[{from:0,to:30}]},narration:{...await asset('voice.wav'),textSha256:hash('Testing'),words:[{id:'testing',text:'Testing',from:10,to:25}],segments:plan.speech},assets:[await asset('demo.mp4')],events:[{id:'title',category:'title',source:{from:0,to:20},description:'Measured title',required:true,disposition:'implemented',target:{shotId:'host',anchor:{kind:'word',wordId:'testing',edge:'start',offset:0},duration:15,effect:{kind:'word-reveal',version:1,text:'Synchronized',color:'#ffffff',fontSize:50,x:.5,y:.7}}},{id:'demo',category:'demo',source:{from:20,to:30},description:'Native demonstration',required:true,disposition:'implemented',target:{shotId:'demo',anchor:{kind:'frame',frame:30},duration:30}}],demos:[{id:'demo',shotId:'demo',asset:'demo.mp4',from:30,to:60,trim:0,gain:.8,audio:'native'}]};
+  assert.equal((await operate('contract.save',{contract},'contract-save')).unresolvedCount,0);
+  assert.equal((await operate('contract.check',{})).effects,1);
+  const renderArgs={planFile,exportName:'verification',sections:[0,1]};await finish(await operate('render.sections',renderArgs,'render-first'));
+  const cached=(await finish(await operate('render.sections',renderArgs,'render-second'))).log as string;assert.equal((cached.match(/"reused":true/g)||[]).length,2);
+  // A section-local edit rebuilds one section while retaining the other exact output.
+  const first=path.join(dir,'exports/verification/section-00.mp4'),second=path.join(dir,'exports/verification/section-01.mp4'),secondHash=await hashFile(second);
+  authored.shots[0].words![0].text='Changed';contract.planSha256=(await operate('plan.save',{plan:authored},'plan-change')).planSha256;await operate('contract.save',{contract},'contract-change');
+  const rerender=(await finish(await operate('render.sections',renderArgs,'render-third'))).log as string;assert.equal((rerender.match(/"reused":true/g)||[]).length,1);assert.equal(await hashFile(second),secondHash);
+  await finish(await operate('render.assemble',{exportName:'verification',name:'master.mp4'},'assemble'));const master=path.join(dir,'exports/verification/master.mp4'),info=await probe(master);assert.ok(info.audio&&info.video&&Math.abs(info.duration-2)<.05);
+  const proof={data,projectId:id,port,jobRestartDeduplication:true,renderCacheReusedSections:2,localizedEditReusedSections:1,unchangedSectionSha256:secondHash,master,masterSha256:await hashFile(master),duration:info.duration,qa:'Synthetic end-to-end engineering test; no real video or owner quality approval.'};await atomicJson(path.join(ROOT,'test-results/production-pipeline-proof.json'),proof);console.log(JSON.stringify(proof));
+}finally{await stop()}

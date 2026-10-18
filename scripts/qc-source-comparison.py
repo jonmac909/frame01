@@ -1,14 +1,16 @@
 """Pair every quarter-second remake sample with its source shot window."""
 from pathlib import Path
-import json,hashlib,cv2
+import json,hashlib,cv2,argparse
 from PIL import Image,ImageDraw
 
 root=Path(__file__).resolve().parents[1];p=root/'data/projects/nano-banana-cartoon-workflow-28043a87'
-plan=json.loads((p/'Complete narration repair plan.json').read_text())
-source=p/'reference/analysis-1792192732714';out=p/'exports/complete-narration/qa-source-comparison';out.mkdir(parents=True,exist_ok=True)
+parser=argparse.ArgumentParser();parser.add_argument('--plan',default='Complete narration repair plan.json');parser.add_argument('--export',default='complete-narration');parser.add_argument('--sections');args=parser.parse_args();assert all(Path(x).name==x for x in[args.plan,args.export]);selected=set(map(int,args.sections.split(',')))if args.sections else None
+plan=json.loads((p/args.plan).read_text())
+source=p/'reference/analysis-1792192732714';out=p/'exports'/args.export/'qa-source-comparison';out.mkdir(parents=True,exist_ok=True)
 cv2.setNumThreads(2)
 for index,section in enumerate(plan['sections']):
-    file=p/f'exports/complete-narration/section-{index:02}.mp4'
+    if selected is not None and index not in selected:continue
+    file=p/f'exports/{args.export}/section-{index:02}.mp4'
     if not file.exists():continue
     digest=hashlib.sha256(file.read_bytes()).hexdigest();dest=out/f'section-{index:02}';dest.mkdir(exist_ok=True);proof=dest/'comparison.json'
     if proof.exists()and json.loads(proof.read_text()).get('sectionSha256')==digest:continue

@@ -31,7 +31,7 @@ const duration=n=>{const seconds=Math.round(n);return `${Math.floor(seconds/60)}
 $('#play-both').textContent=`▶ Play full ${duration(total)} video`;
 runtimeTitle.textContent=`Source ${duration(sourceTotal)} · Sienna ${duration(total)}`;
 $('#full-link').textContent=`Full ${duration(total)} video`;
-let index=0,mode='both',acting=false,loading=false,seeking=false,generation=0,stamp=0,desiredSound='ours';
+let index=0,mode='both',acting=false,loading=false,seeking=false,generation=0,stamp=0,stampSource=0,desiredSound='ours';
 const section=()=>sections[index],length=()=> (section().to-section().from)/30;
 const current=()=>section().from/30+(mode==='source'?source.currentTime/(section().sourceTo-section().sourceFrom)*length():ours.currentTime);
 const sourceLocal=local=>Math.max(0,Math.min(section().sourceTo-section().sourceFrom-.01,local/length()*(section().sourceTo-section().sourceFrom)));
@@ -100,13 +100,21 @@ for(const v of videos){
  v.addEventListener('ended',()=>{if(loading)return;if(v===source&&mode==='both')return;if(index<sections.length-1)loadSection(index+1,0,true);else{pause();say('Full video complete.');}});
 }
 document.addEventListener('keydown',e=>{if(e.target.closest('input,textarea,select,button,a,video'))return;if(e.code==='Space'){e.preventDefault();videos.some(v=>!v.paused)?pause():play();}if(['ArrowLeft','ArrowRight'].includes(e.code)){e.preventDefault();step(e.code==='ArrowLeft'?-1:1);}});
-function setStamp(){stamp=current();$('#stamp').textContent=time(stamp);$('#source-stamp').textContent=`source ${time(section().sourceFrom+sourceLocal(stamp-section().from/30))}`;}
+function setStamp(){stamp=current();stampSource=section().sourceFrom+sourceLocal(stamp-section().from/30);$('#stamp').textContent=time(stamp);$('#source-stamp').textContent=`source ${time(stampSource)}`;}
 $('#stamp-now').onclick=setStamp;$('#stamp').onclick=()=>seek(stamp);
 $('#note').addEventListener('focus',setStamp);
 $('#note').addEventListener('click',setStamp);
-const storage='frame01-full-source-runtime-v1';let notes=[];try{const stored=JSON.parse(localStorage.getItem(storage)||'[]');if(Array.isArray(stored))notes=stored.filter(n=>typeof n.text==='string'&&Number.isFinite(n.at)&&n.at>=0&&n.at<=total);}catch{}
-function showNotes(){const list=$('#notes');list.replaceChildren();for(const n of notes){const li=document.createElement('li'),button=document.createElement('button'),text=document.createElement('p');button.type='button';button.textContent=time(n.at);button.onclick=()=>seek(n.at);text.textContent=n.text;li.append(button,text);list.append(li);}}
-$('#note-form').onsubmit=e=>{e.preventDefault();const input=$('#note'),text=input.value.trim();if(!text)return;notes.push({at:stamp,text,createdAt:new Date().toISOString()});try{localStorage.setItem(storage,JSON.stringify(notes));$('#note-status').textContent='Note saved in this browser.';}catch{$('#note-status').textContent='Export notes to keep them.';}input.value='';showNotes();};
-$('#export-notes').onclick=()=>{const file=URL.createObjectURL(new Blob([['# Frame 01 full-video review','',...notes.map(n=>`- ${time(n.at)}: ${n.text}`)].join('\n')],{type:'text/markdown'})),a=document.createElement('a');a.href=file;a.download='Frame 01 full-video notes.md';a.click();setTimeout(()=>URL.revokeObjectURL(file),1000);};
+const storage='frame01-full-source-runtime-v1',legacyVersion='ac4fa028430ed910085f9f58ecbd60995b07631039f6eace60d0bacec01f636a';
+const reviewedVersion=/^[a-f0-9]{64}$/.test(manifest.masterSha256||'')?manifest.masterSha256:null;
+let notes=[];try{const stored=JSON.parse(localStorage.getItem(storage)||'[]');if(Array.isArray(stored))notes=stored.filter(n=>typeof n.text==='string'&&Number.isFinite(n.at)&&n.at>=0);}catch{}
+// Old notes describe the pre-revision master, even when a later cut is shorter.
+for(const n of notes){n.version=n.version||legacyVersion;if(!n.id){const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify([n.version,n.at,n.text])));n.id='legacy-'+Array.from(new Uint8Array(digest),b=>b.toString(16).padStart(2,'0')).join('');}}
+function saveNotes(){try{localStorage.setItem(storage,JSON.stringify(notes));return true;}catch{return false;}}
+saveNotes();
+const versionLabel=document.createElement('p');versionLabel.textContent=reviewedVersion?`Review cut ${reviewedVersion.slice(0,12)} · Notes retain the cut they refer to.`:'Review cut identity unavailable; new notes cannot be saved.';
+$('#note-form').before(versionLabel);$('#notes').dataset.projectId='nano-banana-cartoon-workflow-28043a87';$('#notes').dataset.reviewVersion=reviewedVersion||'';
+function showNotes(){const list=$('#notes');list.replaceChildren();for(const n of notes){const li=document.createElement('li'),button=document.createElement('button'),text=document.createElement('p');li.dataset.commentId=n.id;li.dataset.version=n.version;li.dataset.at=String(n.at);if(Number.isFinite(n.sourceAt))li.dataset.sourceAt=String(n.sourceAt);button.type='button';button.textContent=time(n.at)+(n.version!==reviewedVersion?' · earlier cut':'');button.disabled=n.version!==reviewedVersion;button.title=`Review cut ${n.version}`;button.onclick=()=>seek(n.at);text.textContent=n.text;li.append(button,text);list.append(li);}}
+$('#note-form').onsubmit=e=>{e.preventDefault();const input=$('#note'),text=input.value.trim();if(!text)return;if(!reviewedVersion){$('#note-status').textContent='Review version unavailable. Keep your note here until the page is repaired.';return;}notes.push({id:crypto.randomUUID(),version:reviewedVersion,at:stamp,sourceAt:stampSource,text,createdAt:new Date().toISOString()});$('#note-status').textContent=saveNotes()?'Note saved in this browser for this cut.':'Browser save failed. Export notes to keep them.';input.value='';showNotes();};
+$('#export-notes').onclick=()=>{const file=URL.createObjectURL(new Blob([['# Frame 01 full-video review','',...notes.map(n=>`- ${time(n.at)}: ${n.text}\n  - Review cut: ${n.version}; comment: ${n.id}`)].join('\n')],{type:'text/markdown'})),a=document.createElement('a');a.href=file;a.download='Frame 01 full-video notes.md';a.click();setTimeout(()=>URL.revokeObjectURL(file),1000);};
 showNotes();sound('ours');await loadSection(0);setStamp();requestAnimationFrame(tick);
 })().catch(()=>{document.querySelector('#playback-status').textContent='The full review could not load. Reload to try again.';});
