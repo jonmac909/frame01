@@ -1,6 +1,6 @@
 # Deterministic editing contract
 
-New projects require a validated `Edit contract.json` before rendering. Existing in-progress projects keep their legacy renderer until deliberately migrated; the current Sienna revision must finish from its frozen inputs. Do not set a contract flag off to evade a failed check.
+New projects require a validated `Edit contract.json` before rendering. The Sienna 15:13.33 cut was owner-approved on 2026-10-18 and remains preserved with its original legacy renderer inputs and pause-trim keep map. Do not migrate or rerender it just to adopt a new contract. Do not set a contract flag off to evade a failed check.
 
 ## Normal workflow
 
@@ -40,7 +40,9 @@ On editor restart, jobs whose owner has exited become visibly failed with an ins
 
 Use preflight's failed checks and bounded `reference.read`, `reference.frames`, `contract.events` and `feedback.context` pages. Repair the named event/section with catalog parameters. Avoid asking the model to invent animation code or reread every transcript. Never claim a missing event was implemented by editing its label alone.
 
-Feedback is versioned and private. Verified corrections contribute conditional checks; exact logos/fonts and other project-local choices do not become universal style rules. Unknown notes remain pending. The current Chrome collector runs every 30 minutes while Codex and the signed-in browser are available. It is not an authenticated server inbox or model training.
+Feedback is versioned and private. Verified corrections contribute conditional checks; exact logos/fonts and other project-local choices do not become universal style rules. Unknown notes remain pending. The owner turned off the recurring Chrome collector on 2026-10-18. Imports remain available on an authorized review pass; do not recreate its schedule. This is not an authenticated server inbox or model training. Seven learned check categories are active from the 13 verified corrections. Original verification remains bound to its reviewed master; the final cut's separate owner approval and retained-frame/audio evidence do not relabel those historical reports.
+
+The accepted pause-trim method removes measured quiet and idle example lead-ins with a paired picture/audio keep map, preserving every spoken word and meaningful action at native speed. Its implementation and QA evidence are retained with the approved project. It is currently an agent-assisted finishing step, not a generic automatic director action. Automatic source interpretation, complete forced alignment, owner-private Site publication, and creative audiovisual QA still need the agent and supported platform permissions.
 
 ## Verification
 
