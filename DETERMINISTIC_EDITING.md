@@ -58,3 +58,7 @@ node --import tsx scripts/verify-production-pipeline.ts
 The two render checks use synthetic media and an isolated local editor. They do not touch live projects or paid providers. Windows sandbox restrictions may require the supported local-network/path-resolution permission route. The pipeline check covers an actual restart, duplicate-request recovery, two rendered sections, both reused from cache, one local edit with one unchanged section, and exact-duration audio assembly. Evidence is private under `test-results/`.
 
 The approved-method fingerprint test preserves the owner's previous sample artifacts; it does not approve new effects or the complete movie. The synthetic animation check reads actual decoded pixels and asserts initial absence, sweep movement/exit, connector growth, exact title onset, and CTA/title holds. `--inspect-existing` rechecks those pixels only when every fixture dependency and image hash still matches; stale inputs require a fresh render. These assertions test motion behavior, not aesthetic parity. The 3–4 hour target remains an end-to-end benchmark to establish on representative completed videos, including provider waits and repair rounds.
+
+## Search and inspect evidence
+
+Use [EVIDENCE_WORKFLOW.md](EVIDENCE_WORKFLOW.md) to find existing spoken/on-screen text, inspect crops, and retrieve native-frame bursts. Reuse indexed evidence across edits. Full 4 FPS coverage and actual audiovisual review remain mandatory; OCR matches and extraction receipts never count as review approval.

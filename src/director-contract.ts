@@ -3,6 +3,7 @@ import {idSchema,timelineSchema,type Project} from './core.js';
 import {feedbackImportSchema,feedbackVerifySchema,feedbackChecks} from './feedback.js';
 import {editContractSchema} from './edit-contract.js';
 import {sectionPlanSchema} from './section-plan.js';
+import {evidenceIndexSchema,evidenceSearchSchema,evidenceFramesSchema,evidenceInspectSchema,evidenceBurstSchema} from './evidence.js';
 
 const empty=z.object({}).strict();
 const kind=z.enum(['heygen','walkthrough']);
@@ -10,6 +11,8 @@ const file=z.string().min(1);
 const op=<N extends string,S extends z.ZodType>(name:N,args:S)=>z.object({name:z.literal(name),args});
 export const operationSchema=z.discriminatedUnion('name',[
   op('project.read',empty),op('project.summary',empty),op('preflight.check',empty),
+  op('evidence.index',evidenceIndexSchema),op('evidence.list',empty),op('evidence.search',evidenceSearchSchema),
+  op('evidence.frames',evidenceFramesSchema),op('evidence.inspect',evidenceInspectSchema),op('evidence.burst',evidenceBurstSchema),
   op('effects.catalog',empty),op('contract.check',empty),op('contract.save',z.object({contract:editContractSchema}).strict()),
   op('contract.events',z.object({offset:z.number().int().nonnegative().default(0),limit:z.number().int().min(1).max(30).default(20)}).strict()),
   op('jobs.read',z.object({jobId:z.string().uuid()}).strict()),

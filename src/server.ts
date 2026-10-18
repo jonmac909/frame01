@@ -42,12 +42,13 @@ app.get('/api/jobs',async(req,res)=>{const offset=Math.max(0,Number(req.query.of
 app.post('/api/projects/:id/action',async(req,res)=>{
   const id=req.params.id;await readProject(id);const {name,args}=operationSchema.parse({name:req.body.name,args:req.body.args??{}});
   const readOnly=new Set(['project.read','project.summary','reference.read','reference.frames','script.read','preflight.check','feedback.context','contract.check','contract.events','effects.catalog','jobs.read','plan.read','course.search','library.search','media.inspect','record.windows','record.status']);
+  for(const op of ['evidence.list','evidence.search','evidence.frames'])readOnly.add(op);
   if(readOnly.has(name)){res.json(await action(id,name,args));return;}
   const key=req.headers['idempotency-key'];if(key!==undefined&&typeof key!=='string')throw new Error('One idempotency key required.');
   const reserved=await jobs.reserve(id,name,args,key);const {job}=reserved;
   if(!reserved.created){if(job.state==='complete')res.json(job.result);else res.status(job.state==='running'?202:409).json({...jobs.publicJob(job),error:job.error});return;}
   const execute=()=>jobs.execute(job,()=>action(id,name,args));
-  if(req.body.background||['render','render.sections','render.assemble'].includes(name)){void execute().catch(async e=>{console.error(`Editor job ${job.id} failed: ${String(e)}`);await mutate(id,p=>event(p,'error',`${name}: ${String(e)}`)).catch(error=>console.error(String(error)))});res.status(202).json(jobs.publicJob(job));return;}
+  if(req.body.background||['render','render.sections','render.assemble','evidence.index'].includes(name)){void execute().catch(async e=>{console.error(`Editor job ${job.id} failed: ${String(e)}`);await mutate(id,p=>event(p,'error',`${name}: ${String(e)}`)).catch(error=>console.error(String(error)))});res.status(202).json(jobs.publicJob(job));return;}
   res.json(await execute());
 });
 app.post('/api/projects/:id/chat',async(req,res)=>{
