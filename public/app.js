@@ -1,4 +1,5 @@
 import {installLibrary} from './library.js';
+import {installEvidence} from './evidence.js';
 let token='',project=null,projects=[],bridge=[],chatBusy=false,dirty=false;const $=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 async function api(url,body){const r=await fetch(url,{method:body===undefined?'GET':'POST',headers:{'Content-Type':'application/json','X-Editor-Token':token},body:body===undefined?undefined:JSON.stringify(body)});const data=await r.json();if(!r.ok)throw new Error(data.error||r.statusText);return data}
@@ -6,6 +7,7 @@ let noticeTimer;function notice(message,error=false){$('notice').textContent=mes
 async function attempt(fn){try{return await fn()}catch(e){notice(e.message,true)}}
 async function load(select){const [items,config]=await Promise.all([api('/api/projects'),api('/api/config')]);projects=items;bridge=config.bridge;project=projects.find(p=>p.id===(select||project?.id||localStorage.editorProject))||projects[0];$('projects').innerHTML=projects.map(p=>`<button class="project-button ${p.id===project?.id?'active':''}" data-project="${p.id}">${esc(p.title)}</button>`).join('');if(project){localStorage.editorProject=project.id;draw()}$('workspace').hidden=!project;$('empty').hidden=!!project;}
 function draw(){
+  document.dispatchEvent(new Event('editor-project-loaded'));
   let captureStatus=$('captureStatus');if(!captureStatus){captureStatus=document.createElement('p');captureStatus.id='captureStatus';captureStatus.setAttribute('role','status');$('captureOpen').parentElement.before(captureStatus)}
   const attached=bridge.find(t=>t.projectId===project.id&&t.kind==='walkthrough'),other=bridge.filter(t=>t.projectId!==project.id&&t.kind==='walkthrough');
   const lastRecording=[...project.events].reverse().find(e=>['recording-started','recording-stopped'].includes(e.type)),recording=lastRecording?.type==='recording-started';
@@ -32,6 +34,7 @@ $('searchForm').onsubmit=e=>{e.preventDefault();attempt(async()=>{const rows=awa
 function chat(text,cls=''){const el=document.createElement('div');el.className='chat-item '+cls;el.textContent=text;$('chatLog').append(el);el.scrollIntoView({block:'nearest'});return el}
 $('chatForm').onsubmit=e=>{e.preventDefault();if(chatBusy)return;attempt(async()=>{const message=$('message').value.trim();if(!message)return;chatBusy=true;const button=e.target.querySelector('button');button.disabled=true;chat(message,'user');$('message').value='';const out=chat('Connecting to director…');let text='';try{const response=await fetch(`/api/projects/${project.id}/chat`,{method:'POST',headers:{'Content-Type':'application/json','X-Editor-Token':token},body:JSON.stringify({message})});if(!response.ok)throw new Error((await response.json()).error);const reader=response.body.getReader(),decoder=new TextDecoder();let buffer='';while(true){const r=await reader.read();if(r.done)break;buffer+=decoder.decode(r.value,{stream:true});const lines=buffer.split('\n');buffer=lines.pop();for(const line of lines){if(!line)continue;const ev=JSON.parse(line);if(ev.type==='message.appended'){text+=ev.data.messageDelta;out.textContent=text}if(ev.type==='action.result')await load();if(['editor.error','turn.failed','session.failed'].includes(ev.type))out.textContent+='\n'+JSON.stringify(ev.data);}}if(!text&&out.textContent==='Connecting to director…')out.textContent='Turn finished. Check Activity for details.';}finally{chatBusy=false;button.disabled=false;await load();}})};
 installLibrary({act,attempt,esc,media});
+installEvidence({api,getProject:()=>project,attempt,esc});
 $('openHeygen').textContent='Inspect existing HeyGen tab';$('openWalkthrough').textContent='Inspect existing walkthrough tab';$('captureOpen').textContent='Inspect attached Chrome tab';
 await attempt(async()=>{token=(await api('/api/config')).token;await load();const health=await api('/api/health');$('health').textContent=health.agent?.ok?'● Director connected':'○ Editor ready · director offline'});
 const known=new Set();setInterval(()=>attempt(async()=>{for(const job of await api('/api/jobs'))if(job.state!=='running'&&!known.has(job.id)){known.add(job.id);notice(job.state==='failed'?job.error:`${job.action} completed`,job.state==='failed');await load()}}),4000);

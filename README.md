@@ -1,5 +1,7 @@
 # Frame 01 — local video editing agent, v1
 
+The **Evidence** tab adds local on-screen text and transcript search, exact-frame crops, and native-frame bursts. The director and Frontier can use the same [searchable evidence workflow](EVIDENCE_WORKFLOW.md), with complete 4 FPS paging and resumable Windows CPU OCR.
+
 Run **Start Video Editor.ps1** and open **http://127.0.0.1:4317**. This is a separate local app; it does not change AutoAiGen or its GPU services.
 
 This repository contains the Windows local editor, Eve director, existing-Chrome bridge, automatic window recorder, Remotion compositions, source-analysis scripts and artifact checks. Reference analysis samples the complete video at **4 fps**, without a frame cap, and saves timestamped frames, candidate changes, and contact sheets. Extraction alone does not establish semantic visual review.
