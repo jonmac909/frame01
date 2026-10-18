@@ -1,0 +1,10 @@
+**
+!Dockerfile
+!package.json
+!package-lock.json
+!protocol.mjs
+!local-files.mjs
+!runner.mjs
+!runner-child.mjs
+!container.mjs
+!runtime.mjs

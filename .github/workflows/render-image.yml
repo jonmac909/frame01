@@ -1,0 +1,42 @@
+name: Build portable render image
+on:
+  push:
+    branches: [codex/cloud-render-pilot]
+    paths: ['cloud-render/**', '.github/workflows/render-image.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: frame01-image-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  image:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Test portable contracts and worker scheduling
+        run: docker run --rm -v "$PWD/cloud-render:/src" -w /src node:24-bookworm-slim sh -c 'npm ci --no-audit --no-fund && npm test && npm run check'
+      - name: Build code-only image
+        run: docker build -t frame01-render:pilot cloud-render
+      - name: Verify Chromium and health endpoint
+        run: |
+          docker run -d --name frame01-smoke -p 127.0.0.1:8080:8080 frame01-render:pilot
+          for attempt in $(seq 1 30); do curl --fail --silent http://127.0.0.1:8080/health && break; sleep 1; done
+          curl --fail http://127.0.0.1:8080/health
+          docker exec frame01-smoke node --input-type=module -e "import {openBrowser} from '@remotion/renderer'; const b=await openBrowser('chrome',{browserExecutable:process.env.CHROME_PATH,chromiumOptions:{gl:'swangle'}}); await b.close({silent:true}); console.log('Chromium verified');"
+          docker exec frame01-smoke node --input-type=module -e "import {runtimeHash} from './runtime.mjs'; console.log(await runtimeHash())" > runtime-sha256.txt
+          docker stop frame01-smoke
+      - name: Export image
+        run: |
+          docker save frame01-render:pilot | gzip -1 > frame01-render.tar.gz
+          sha256sum frame01-render.tar.gz > image-sha256.txt
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: frame01-render-image
+          path: |
+            frame01-render.tar.gz
+            image-sha256.txt
+            runtime-sha256.txt
+          retention-days: 1
+          compression-level: 0
