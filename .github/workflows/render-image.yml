@@ -15,6 +15,8 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Test portable contracts and worker scheduling
+        run: docker run --rm -v "$PWD/cloud-render:/src" -w /src node:24-bookworm-slim sh -c 'npm ci --no-audit --no-fund && npm test && npm run check'
       - name: Build code-only image
         run: docker build -t frame01-render:pilot cloud-render
       - name: Verify Chromium and health endpoint
