@@ -1,0 +1,22 @@
+{
+  "name": "frame01-cloud-render",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "check": "tsc --noEmit",
+    "start": "node container.mjs",
+    "deploy": "wrangler deploy"
+  },
+  "dependencies": {
+    "@cloudflare/containers": "0.3.7",
+    "@remotion/renderer": "4.0.536"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "5.20261018.1",
+    "@types/node": "24.10.0",
+    "typescript": "5.9.3",
+    "wrangler": "4.151.1"
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "frame01-render-pilot",
+  "main": "worker.ts",
+  "compatibility_date": "2026-10-18",
+  "workers_dev": true,
+  "observability": {"enabled": false},
+  "vars": {"MAX_WORKERS": "4", "PILOT_COMPUTE_USD": "5"},
+  "r2_buckets": [{"binding": "MEDIA", "bucket_name": "frame01-render-private"}],
+  "containers": [{"class_name": "RenderContainer", "image": "./Dockerfile", "instance_type": "standard-4", "max_instances": 4}],
+  "durable_objects": {"bindings": [{"name": "RENDERS", "class_name": "RenderContainer"}, {"name": "CONTROL", "class_name": "RenderControl"}]},
+  "migrations": [{"tag": "v1", "new_sqlite_classes": ["RenderContainer", "RenderControl"]}]
+}
