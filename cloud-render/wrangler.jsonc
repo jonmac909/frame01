@@ -5,9 +5,9 @@
   "compatibility_date": "2026-10-18",
   "workers_dev": true,
   "observability": {"enabled": false},
-  "vars": {"MAX_WORKERS": "4", "PILOT_COMPUTE_USD": "5", "RENDER_RUNTIME_SHA256": "57a7f7d86c83b63c9a534f058ec776e36b7a81837303e1f48974ce513962857e", "RENDER_IMAGE_SHA256": "96c6f54be1adf33c037c6210d3f2041a2972d8e3bad22661044da9a9a47886db"},
+  "vars": {"MAX_WORKERS": "4", "PILOT_COMPUTE_USD": "5", "RENDER_RUNTIME_SHA256": "e4dda65b74c91e06ea465b9b874e2899066387cfd49c73cba0514d96c0d577b1", "RENDER_IMAGE_SHA256": "52f59abd4697da9274aeb32025eb0730edbd20f92fc5a859951e207b4786fc29"},
   "r2_buckets": [{"binding": "MEDIA", "bucket_name": "frame01-render-private"}],
-  "containers": [{"class_name": "RenderContainer", "image": "registry.cloudflare.com/c95932106ce20c028dd3841ed6ebd0d8/frame01-render@sha256:96c6f54be1adf33c037c6210d3f2041a2972d8e3bad22661044da9a9a47886db", "instance_type": "standard-4", "max_instances": 4}],
+  "containers": [{"class_name": "RenderContainer", "image": "registry.cloudflare.com/c95932106ce20c028dd3841ed6ebd0d8/frame01-render@sha256:52f59abd4697da9274aeb32025eb0730edbd20f92fc5a859951e207b4786fc29", "instance_type": "standard-4", "max_instances": 4}],
   "durable_objects": {"bindings": [{"name": "RENDERS", "class_name": "RenderContainer"}, {"name": "CONTROL", "class_name": "RenderControl"}]},
   "migrations": [{"tag": "v1", "new_sqlite_classes": ["RenderContainer", "RenderControl"]}]
 }
